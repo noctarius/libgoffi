@@ -151,83 +151,82 @@ func unwrapType(t ffiType) reflect.Type {
 
 type finalizer = func()
 
-func wrapValue(value reflect.Value) (pointer, finalizer) {
+func wrapValue(value reflect.Value) (unsafe.Pointer, finalizer) {
 	t := value.Type()
 	v := value.Interface()
 	switch t.Kind() {
 	case reflect.String:
 		cs := C.CString(v.(string))
-		ptr := pointer(unsafe.Pointer(&cs))
 		fin := func() {
-			C.free(unsafe.Pointer(&cs))
+			C.free(unsafe.Pointer(cs))
 		}
-		return ptr, fin
+		return unsafe.Pointer(cs), fin
 
 	case reflect.UnsafePointer:
-		return pointer(v.(unsafe.Pointer)), nil
+		return v.(unsafe.Pointer), nil
 	case reflect.Uintptr:
-		return pointer(unsafe.Pointer(v.(uintptr))), nil
+		return unsafe.Pointer(v.(uintptr)), nil
 
 	case reflect.Uint:
 		val := value.Uint()
 		if intSize == 2 {
 			v := C.uint16_t(val)
-			return pointer(unsafe.Pointer(&v)), nil
+			return unsafe.Pointer(&v), nil
 		}
 		v := C.uint32_t(val)
-		return pointer(unsafe.Pointer(&v)), nil
+		return unsafe.Pointer(&v), nil
 
 	case reflect.Uint8:
 		val := C.uint8_t(value.Uint())
-		return pointer(unsafe.Pointer(&val)), nil
+		return unsafe.Pointer(&val), nil
 
 	case reflect.Uint16:
 		val := C.uint16_t(value.Uint())
-		return pointer(unsafe.Pointer(&val)), nil
+		return unsafe.Pointer(&val), nil
 
 	case reflect.Uint32:
 		val := C.uint32_t(value.Uint())
-		return pointer(unsafe.Pointer(&val)), nil
+		return unsafe.Pointer(&val), nil
 
 	case reflect.Uint64:
 		val := C.uint64_t(value.Uint())
-		return pointer(unsafe.Pointer(&val)), nil
+		return unsafe.Pointer(&val), nil
 
 	case reflect.Int:
 		val := value.Int()
 		if intSize == 2 {
 			v := C.int16_t(val)
-			return pointer(unsafe.Pointer(&v)), nil
+			return unsafe.Pointer(&v), nil
 		}
 		v := C.int32_t(val)
-		return pointer(unsafe.Pointer(&v)), nil
+		return unsafe.Pointer(&v), nil
 
 	case reflect.Int8:
 		val := C.int8_t(value.Int())
-		return pointer(unsafe.Pointer(&val)), nil
+		return unsafe.Pointer(&val), nil
 
 	case reflect.Int16:
 		val := C.int16_t(value.Int())
-		return pointer(unsafe.Pointer(&val)), nil
+		return unsafe.Pointer(&val), nil
 
 	case reflect.Int32:
 		val := C.int32_t(value.Int())
-		return pointer(unsafe.Pointer(&val)), nil
+		return unsafe.Pointer(&val), nil
 
 	case reflect.Int64:
 		val := C.int64_t(value.Int())
-		return pointer(unsafe.Pointer(&val)), nil
+		return unsafe.Pointer(&val), nil
 
 	case reflect.Float32:
 		val := C.float(value.Float())
-		return pointer(unsafe.Pointer(&val)), nil
+		return unsafe.Pointer(&val), nil
 
 	case reflect.Float64:
 		val := C.double(value.Float())
-		return pointer(unsafe.Pointer(&val)), nil
+		return unsafe.Pointer(&val), nil
 
 	case reflect.Ptr:
-		return pointer(unsafe.Pointer(value.Elem().UnsafeAddr())), nil
+		return unsafe.Pointer(value.Elem().UnsafeAddr()), nil
 
 	case reflect.Bool:
 		b := 0
@@ -237,10 +236,10 @@ func wrapValue(value reflect.Value) (pointer, finalizer) {
 
 		if boolSize == 1 {
 			val := C.int8_t(b)
-			return pointer(unsafe.Pointer(&val)), nil
+			return unsafe.Pointer(&val), nil
 		} else {
 			val := C.int16_t(b)
-			return pointer(unsafe.Pointer(&val)), nil
+			return unsafe.Pointer(&val), nil
 		}
 	}
 	panic(errors.New(fmt.Sprintf("unhandled data type: %s", t.Kind().String())))

@@ -7,6 +7,7 @@ package libgoffi
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 
 const int _ptrSize = sizeof(uintptr_t);
 
@@ -20,26 +21,34 @@ const int _intSize = 4;
 #error "64 bit base int is unsupported, please use int64 explicitly"
 #endif
 
+typedef void (*fnptr_t)(void);
+typedef void* _pointer;
+typedef void** arguments;
+
 static void **argsArrayNew(int nargs) {
 	void** ptr = (void **)(malloc(nargs * _ptrSize));
 	memset(ptr, 0, nargs * _ptrSize);
 	return ptr;
 }
 
-static void argsArraySet(void **args, int index, uintptr_t ptr) {
-	args[index] = (void *) ptr;
+static void argsArraySet(void **args, int index, void *ptr) {
+	args[index] = ptr;
 }
 
 static void argsArrayFree(void **args) {
 	free(args);
 }
 
-static void _ffi_call(ffi_cif *cif, void *fn, void *rvalue, void **values) {
+static void _ffi_call(ffi_cif *cif, fnptr_t fn, void *rvalue, void **values) {
+	printf("test");
 	ffi_call(cif, fn, rvalue, values);
 }
 
-typedef void (*fnptr_t)(void);
-typedef void* _pointer;
+static void *makeInt(int val) {
+	void *ptr = (void *) malloc(sizeof(int));
+	*((int*) ptr) = val;
+	return ptr;
+}
 */
 import "C"
 
@@ -63,8 +72,6 @@ var (
 	boolSize = int(C._boolSize)
 	intSize  = int(C._intSize)
 )
-
-type pointer C._pointer
 
 type status int
 
@@ -95,6 +102,8 @@ const (
 	BindGlobal = dl.Global
 )
 
+type FFICleaner func()
+
 type Library struct {
 	lib dl.Library
 }
@@ -121,7 +130,7 @@ func (l *Library) Close() error {
 }
 
 func (l *Library) Function(symbol string, retType reflect.Type, returnsError bool,
-	argumentTypes ...reflect.Type) (interface{}, error) {
+	argumentTypes ...reflect.Type) (interface{}, FFICleaner, error) {
 
 	out := []reflect.Type{retType}
 	if returnsError {
@@ -132,21 +141,21 @@ func (l *Library) Function(symbol string, retType reflect.Type, returnsError boo
 	return l.GoFunction(symbol, funcType, funcType)
 }
 
-func (l *Library) GoFunction(symbol string, goFnType reflect.Type, cFnType reflect.Type) (interface{}, error) {
+func (l *Library) GoFunction(symbol string, goFnType reflect.Type, cFnType reflect.Type) (interface{}, FFICleaner, error) {
 	if goFnType.Kind() != reflect.Func {
-		return nil, errNoGoFuncDef
+		return nil, nil, errNoGoFuncDef
 	}
 	if cFnType.Kind() != reflect.Func {
-		return nil, errNoCFuncDef
+		return nil, nil, errNoCFuncDef
 	}
 
 	returnsError := false
 	if goFnType.NumOut() > 1 {
 		if goFnType.NumOut() > 2 {
-			return nil, errGoFuncMultiReturn
+			return nil, nil, errGoFuncMultiReturn
 		}
 		if !goFnType.Out(1).Implements(TypeError) {
-			return nil, errGoFuncMultiReturn
+			return nil, nil, errGoFuncMultiReturn
 		}
 		returnsError = true
 	}
@@ -164,12 +173,17 @@ func (l *Library) GoFunction(symbol string, goFnType reflect.Type, cFnType refle
 
 	cif, err := newCif(cFnType)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
+	}
+
+	var cleaner FFICleaner = func() {
+		C.free(unsafe.Pointer(cif.arg_types))
 	}
 
 	sym, err := l.lib.Symbol(symbol)
 	if err != nil {
-		return nil, err
+		cleaner()
+		return nil, nil, err
 	}
 
 	fnPtr := (C.fnptr_t)(unsafe.Pointer(sym))
@@ -190,122 +204,28 @@ func (l *Library) GoFunction(symbol string, goFnType reflect.Type, cFnType refle
 			panic(err)
 		}
 
-		//args := makeArgsArray(nargs) // make([]unsafe.Pointer, nargs) //makeArgsArray(nargs)
 		args := C.argsArrayNew(C.int(nargs))
 		finalizers := make([]finalizer, 0)
 		for i := 0; i < nargs; i++ {
-			//arg, fin := wrapValue(values[i])
-
-			var fin finalizer = nil
-
-			value := values[i]
-			t := value.Type()
-			v := value.Interface()
-			switch t.Kind() {
-			case reflect.String:
-				cs := C.CString(v.(string))
-				C.argsArraySet(args, C.int(i), C.ulong(uintptr(unsafe.Pointer(&cs))))
-				//args[i] = unsafe.Pointer(&cs)
-				fin = func() {
-					C.free(unsafe.Pointer(&cs))
-				}
-
-			case reflect.UnsafePointer:
-				//args[i] = v.(unsafe.Pointer)
-			case reflect.Uintptr:
-				//args[i] = unsafe.Pointer(v.(uintptr))
-			case reflect.Uint:
-				/*val := value.Uint()
-				if intSize == 2 {
-					v := C.uint16_t(val)
-					args[i] = unsafe.Pointer(&v)
-				} else {
-					v := C.uint32_t(val)
-					args[i] = unsafe.Pointer(&v)
-				}*/
-				//args[i] = unsafe.Pointer(value.Elem().Pointer())
-			case reflect.Uint8:
-				//val := C.uint8_t(value.Uint())
-				//args[i] = unsafe.Pointer(&val)
-			case reflect.Uint16:
-				//val := C.uint16_t(value.Uint())
-				//args[i] = unsafe.Pointer(&val)
-			case reflect.Uint32:
-				//val := C.uint32_t(value.Uint())
-				//args[i] = unsafe.Pointer(&val)
-			case reflect.Uint64:
-				//val := C.uint64_t(value.Uint())
-				//args[i] = unsafe.Pointer(&val)
-			case reflect.Int:
-				/*val := value.Int()
-				if intSize == 2 {
-					v := C.int16_t(val)
-					args[i] = unsafe.Pointer(&v)
-				} else {
-					v := C.int32_t(val)
-					args[i] = unsafe.Pointer(&v)
-				}*/
-				ptr := reflect.New(value.Type())
-				ptr.Elem().Set(value)
-				//args[i] = ptr.Elem().UnsafeAddr()
-				C.argsArraySet(args, C.int(i), C.ulong(ptr.Elem().UnsafeAddr()))
-			case reflect.Int8:
-				//val := C.int8_t(value.Int())
-				//args[i] = unsafe.Pointer(&val)
-			case reflect.Int16:
-				//val := C.int16_t(value.Int())
-				//args[i] = unsafe.Pointer(&val)
-			case reflect.Int32:
-				//val := C.int32_t(value.Int())
-				//args[i] = unsafe.Pointer(&val)
-			case reflect.Int64:
-				//val := C.int64_t(value.Int())
-				//args[i] = unsafe.Pointer(&val)
-			case reflect.Float32:
-				//val := C.float(value.Float())
-				//args[i] = unsafe.Pointer(&val)
-			case reflect.Float64:
-				//val := C.double(value.Float())
-				//args[i] = unsafe.Pointer(&val)
-			case reflect.Ptr:
-				//args[i] = unsafe.Pointer(value.Elem().UnsafeAddr())
-			case reflect.Bool:
-				/*b := 0
-				if v.(bool) {
-					b = 1
-				}
-
-				if boolSize == 1 {
-					val := C.int8_t(b)
-					args[i] = unsafe.Pointer(&val)
-				} else {
-					val := C.int16_t(b)
-					args[i] = unsafe.Pointer(&val)
-				}*/
-			}
+			arg, fin := wrapValue(values[i])
 
 			if fin != nil {
 				finalizers = append(finalizers, fin)
 			}
+			C.argsArraySet(args, C.int(i), arg)
+		}
+
+		var cargs C.arguments = nil
+		if nargs > 0 {
+			cargs = args
 		}
 
 		ot := unwrapType(retType)
 		out := reflect.New(ot)
-		if nargs > 0 {
-			//_, err := C.ffi_call(&cif, fnPtr, unsafe.Pointer(out.Elem().UnsafeAddr()), args)
-			_, err := C._ffi_call(&cif, fnPtr, unsafe.Pointer(out.Elem().UnsafeAddr()), args)
-			if err != nil {
-				panic(err)
-			}
-			//argsPtr = (*unsafe.Pointer)(&args[0]) //argsArrayPointer(args) //&args[0]
-		} else {
-			//_, err := C.ffi_call(&cif, fnPtr, unsafe.Pointer(out.Elem().UnsafeAddr()), nil)
-			_, err := C._ffi_call(&cif, fnPtr, unsafe.Pointer(out.Elem().UnsafeAddr()), nil)
-			if err != nil {
-				panic(err)
-			}
+		_, err := C._ffi_call(&cif, fnPtr, unsafe.Pointer(out.Elem().UnsafeAddr()), cargs)
+		if err != nil {
+			panic(err)
 		}
-		//freeArgsArray(args)
 		C.argsArrayFree(args)
 
 		for i := 0; i < len(finalizers); i++ {
@@ -326,16 +246,20 @@ func (l *Library) GoFunction(symbol string, goFnType reflect.Type, cFnType refle
 		return retValues
 	}
 
-	return reflect.MakeFunc(goFnType, stub).Interface(), nil
+	return reflect.MakeFunc(goFnType, stub).Interface(), cleaner, nil
 }
 
 func newCif(fnType reflect.Type) (C.ffi_cif, error) {
 	var cif C.ffi_cif
 
 	nargs := fnType.NumIn()
-	args := make([]ffiType, nargs)
+	args := (*ffiType)(C.malloc(C.size_t(ptrSize * nargs)))
+
+	header := reflect.SliceHeader{Data: uintptr(unsafe.Pointer(args)), Len: nargs, Cap: nargs}
+	slice := *(*[]ffiType)(unsafe.Pointer(&header))
+
 	for i := 0; i < nargs; i++ {
-		args[i] = wrapType(fnType.In(i))
+		slice[i] = wrapType(fnType.In(i))
 	}
 
 	ret := typeVoid
@@ -344,8 +268,8 @@ func newCif(fnType reflect.Type) (C.ffi_cif, error) {
 	}
 
 	var argsPtr *ffiType = nil
-	if len(args) > 0 {
-		argsPtr = &args[0]
+	if len(slice) > 0 {
+		argsPtr = args
 	}
 
 	retval := status(C.ffi_prep_cif(&cif, C.FFI_DEFAULT_ABI, C.uint(nargs), ret, argsPtr))
@@ -354,20 +278,4 @@ func newCif(fnType reflect.Type) (C.ffi_cif, error) {
 	}
 
 	return cif, nil
-}
-
-func makeArgsArray(nargs int) []pointer {
-	carr := (**C.void)(C.malloc(C.ulong(nargs * ptrSize)))
-	header := reflect.SliceHeader{Data: uintptr(unsafe.Pointer(carr)), Len: nargs, Cap: nargs}
-	return *(*[]pointer)(unsafe.Pointer(&header))
-}
-
-func argsArrayPointer(slice []pointer) *pointer {
-	header := (*reflect.SliceHeader)(unsafe.Pointer(&slice))
-	return (*pointer)(unsafe.Pointer(header.Data))
-}
-
-func freeArgsArray(slice []pointer) {
-	header := (*reflect.SliceHeader)(unsafe.Pointer(&slice))
-	C.free(unsafe.Pointer(header.Data))
 }

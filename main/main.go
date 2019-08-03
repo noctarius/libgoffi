@@ -15,8 +15,8 @@ func main() {
 		panic(err)
 	}
 
-	/*println("searching getpid function...")
-	fn, err := lib.Function("getpid", goffi.TypeInt, true)
+	println("searching getpid function...")
+	fn, _, err := lib.Function("getpid", goffi.TypeInt, true)
 	if err != nil {
 		panic(err)
 	}
@@ -27,10 +27,10 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	println(fmt.Sprintf("pid: %d", pid))*/
+	println(fmt.Sprintf("pid: %d", pid))
 
 	println("searching abs function...")
-	fn, err := lib.Function("abs", goffi.TypeInt, true, goffi.TypeInt)
+	fn, cleaner, err := lib.Function("abs", goffi.TypeInt, true, goffi.TypeInt)
 	if err != nil {
 		panic(err)
 	}
@@ -38,8 +38,10 @@ func main() {
 	println("executing abs...")
 	fnAbs := fn.(abs)
 	a, err := fnAbs(-12)
+	//a, err := lib.Test(-12)
 	if err != nil {
 		panic(err)
 	}
 	println(fmt.Sprintf("abs: %d", a))
+	cleaner()
 }
