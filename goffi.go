@@ -1,8 +1,8 @@
 package libgoffi
 
 /*
-#cgo LDFLAGS: -lffi
-//#cgo pkg-config: libffi
+//#cgo LDFLAGS: -lffi
+#cgo pkg-config: libffi
 #include <ffi.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -32,6 +32,10 @@ static void argsArraySet(void **args, int index, uintptr_t ptr) {
 
 static void argsArrayFree(void **args) {
 	free(args);
+}
+
+static void _ffi_call(ffi_cif *cif, void *fn, void *rvalue, void **values) {
+	ffi_call(cif, fn, rvalue, values);
 }
 
 typedef void (*fnptr_t)(void);
@@ -288,13 +292,15 @@ func (l *Library) GoFunction(symbol string, goFnType reflect.Type, cFnType refle
 		ot := unwrapType(retType)
 		out := reflect.New(ot)
 		if nargs > 0 {
-			_, err := C.ffi_call(&cif, fnPtr, unsafe.Pointer(out.Elem().UnsafeAddr()), args)
+			//_, err := C.ffi_call(&cif, fnPtr, unsafe.Pointer(out.Elem().UnsafeAddr()), args)
+			_, err := C._ffi_call(&cif, fnPtr, unsafe.Pointer(out.Elem().UnsafeAddr()), args)
 			if err != nil {
 				panic(err)
 			}
 			//argsPtr = (*unsafe.Pointer)(&args[0]) //argsArrayPointer(args) //&args[0]
 		} else {
-			_, err := C.ffi_call(&cif, fnPtr, unsafe.Pointer(out.Elem().UnsafeAddr()), nil)
+			//_, err := C.ffi_call(&cif, fnPtr, unsafe.Pointer(out.Elem().UnsafeAddr()), nil)
+			_, err := C._ffi_call(&cif, fnPtr, unsafe.Pointer(out.Elem().UnsafeAddr()), nil)
 			if err != nil {
 				panic(err)
 			}
