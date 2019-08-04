@@ -21,6 +21,8 @@ package libgoffi
 #include <ffi.h>
 #include <stdlib.h>
 #include <stdint.h>
+
+typedef void* _ptr;
 */
 import "C"
 import (
@@ -177,7 +179,7 @@ func wrapValue(value reflect.Value) (unsafe.Pointer, finalizer) {
 		fin := func() {
 			C.free(unsafe.Pointer(cs))
 		}
-		return unsafe.Pointer(cs), fin
+		return unsafe.Pointer(&cs), fin
 
 	case reflect.UnsafePointer:
 		return v.(unsafe.Pointer), nil
@@ -243,7 +245,12 @@ func wrapValue(value reflect.Value) (unsafe.Pointer, finalizer) {
 		return unsafe.Pointer(&val), nil
 
 	case reflect.Ptr:
-		return unsafe.Pointer(value.Elem().UnsafeAddr()), nil
+		ptr := (*C.int)(C.malloc(C.size_t(ptrSize)))
+		*ptr = (C.int)(value.Pointer())
+		fin := func() {
+			C.free(unsafe.Pointer(ptr))
+		}
+		return unsafe.Pointer(&ptr), fin
 
 	case reflect.Bool:
 		b := 0

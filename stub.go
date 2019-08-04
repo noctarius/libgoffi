@@ -86,7 +86,9 @@ func makeStub(inFnType, outFnType reflect.Type, cif *C.ffi_cif, funcPtr function
 		args := C.argsArrayNew(C.int(nargs))
 		finalizers := make([]finalizer, 0)
 		for i := 0; i < nargs; i++ {
-			values[i] = convertValue(values[i], outFnType.In(i))
+			if inFnType.In(i) != outFnType.In(i) {
+				values[i] = convertValue(values[i], outFnType.In(i))
+			}
 			arg, fin := wrapValue(values[i])
 
 			if fin != nil {
