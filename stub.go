@@ -106,6 +106,9 @@ func makeStub(inFnType, outFnType reflect.Type, cif *C.ffi_cif, funcPtr function
 		out := reflect.New(ot)
 		_, err := C._ffi_call(cif, funcPtr, unsafe.Pointer(out.Elem().UnsafeAddr()), cargs)
 		if err != nil {
+			if returnsError {
+				return []reflect.Value{valueNil, reflect.ValueOf(err)}
+			}
 			panic(err)
 		}
 		C.argsArrayFree(args)
