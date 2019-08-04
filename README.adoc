@@ -69,6 +69,7 @@ Thanks to the _go-dl_ library which is used to load the underlying dynamic libra
 libgoffi tries hard to automatically determine the actual path of a library.
 
 Loading a library is normally as easy as asking by its name:
+
 [source,go]
 ----
 import (
@@ -258,7 +259,7 @@ if !ok {
 println(fmt.sprintf("sqrt of 9: %f", sqrt(9)))
 ----
 
-=== Closing a Loaded Library
+== Closing a Loaded Library
 
 libgoffi uses internal caches to store state and loaded symbols. Furthermore it also
 allocates memory outside of the Go heap. That said, a loaded library needs to be
