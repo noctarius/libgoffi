@@ -29,6 +29,10 @@ functions onto Go function types, using libffi's common foreign function interfa
 In addition libgoffi can map the most commonly used data types between Go and C
 bi-directionally.
 
+**Attention:** libgoffi might run on Go compiler versions lower than 1.12, this is
+not tested though. Pull requests to support older and newer versions are welcome
+though.
+
 == Supported Data Types
 
 libgoffi currently supports the most common Go data types. Automatic data type
@@ -64,6 +68,19 @@ when automatically mapping those data types.
 Mapping of structs is not supported. It is also recommended to create all pointers
 that need to be passed to C code to allocate using _C.malloc(…)_ to prevent the
 Go runtime to catch the "_Go Pointer to Go Pointer_" exception.
+
+== Supported Operating Systems
+
+lobgoffi should support almost every posix compliant OS, there is, however, only
+code for Linux and OSX (Darwin).
+
+A few lines of code should make it possible to support operating systems like
+FreeBSD or similar. Pull requests to add support for other operating systems are
+welcome.
+
+**Windows** is not supported, since Windows does not support dlopen, dlsym and dlclose.
+It might possible to support the WinAPI functions to load .DLL files though. Again
+pull requests adding support for Windows are welcome.
 
 == Loading a Library
 
