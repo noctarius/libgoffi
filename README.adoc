@@ -11,7 +11,7 @@ clevabit GmbH <https://github.com/clevabit[@clevabit]>
 
 == Introduction to libgoffi
 
-image:https://godoc.org/github.com/clevabi/libgoffi?status.svg[link=https://github.com/clevabi/libgoffi]
+image:https://godoc.org/github.com/clevabit/libgoffi?status.svg[link=https://godoc.org/github.com/clevabit/libgoffi]
 
 link:http://sourceware.org/libffi/[libffi] is one of the most commonly used libraries
 to implement foreign function interfaces in programming languages or frameworks.
