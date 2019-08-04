@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	goffi "github.com/clevabit/libgoffi"
+	"reflect"
 )
 
 type getpid = func() (int, error)
@@ -17,10 +18,12 @@ func main() {
 	}
 
 	println("searching getpid function...")
-	fn, err := lib.ImportCustom("getpid", goffi.TypeInt, true)
+	fn, err := lib.NewImport("getpid", goffi.TypeInt, true)
 	if err != nil {
 		panic(err)
 	}
+
+	gp := (fn).(func() (int, error))
 
 	println("executing getpid...")
 	fnGetpid := fn.(getpid)
@@ -31,7 +34,7 @@ func main() {
 	println(fmt.Sprintf("pid: %d", pid))
 
 	println("searching abs function...")
-	fn, err = lib.ImportCustom("abs", goffi.TypeInt, true, goffi.TypeInt)
+	fn, err = lib.NewImport("abs", goffi.TypeInt, true, goffi.TypeInt)
 	if err != nil {
 		panic(err)
 	}
@@ -52,4 +55,18 @@ func main() {
 	}
 
 	println(fmt.Sprintf("sqrt: %f", sqrt(9.)))
+
+	fnGo := reflect.FuncOf(
+		[]reflect.Type{goffi.TypeInt},
+		[]reflect.Type{goffi.TypeInt},
+		false,
+	)
+
+	fnC := reflect.FuncOf(
+		[]reflect.Type{goffi.TypeFloat64},
+		[]reflect.Type{goffi.TypeFloat64},
+		false,
+	)
+
+	fn, err := lib.NewImportComplex("sqrt", fnGo, fnC)
 }

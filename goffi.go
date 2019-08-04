@@ -146,7 +146,7 @@ func (l *Library) Import(symbol string, target interface{}) error {
 	return nil
 }
 
-func (l *Library) ImportCustom(symbol string, retType reflect.Type, returnsError bool,
+func (l *Library) NewImport(symbol string, retType reflect.Type, returnsError bool,
 	argumentTypes ...reflect.Type) (interface{}, error) {
 
 	out := []reflect.Type{retType}
@@ -155,10 +155,10 @@ func (l *Library) ImportCustom(symbol string, retType reflect.Type, returnsError
 	}
 
 	funcType := reflect.FuncOf(argumentTypes, out, false)
-	return l.ImportComplex(symbol, funcType, funcType)
+	return l.NewImportComplex(symbol, funcType, funcType)
 }
 
-func (l *Library) ImportComplex(symbol string, goFnType reflect.Type, cFnType reflect.Type) (interface{}, error) {
+func (l *Library) NewImportComplex(symbol string, goFnType reflect.Type, cFnType reflect.Type) (interface{}, error) {
 	if goFnType.Kind() != reflect.Func {
 		return nil, errNoGoFuncDef
 	}
