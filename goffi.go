@@ -1,76 +1,29 @@
 package libgoffi
 
 /*
-//#cgo LDFLAGS: -lffi
-#cgo pkg-config: libffi
 #include <ffi.h>
-#include <stdint.h>
 #include <stdlib.h>
-#include <string.h>
-#include <stdio.h>
 
-const int _ptrSize = sizeof(uintptr_t);
-
-const int _boolSize = sizeof(_Bool);
-
-#if INT_MAX == 32767
-const int _intSize = 2;
-#elif INT_MAX == 2147483647
-const int _intSize = 4;
-#elif INT_MAX == 9223372036854775807
-#error "64 bit base int is unsupported, please use int64 explicitly"
-#endif
-
-typedef void (*fnptr_t)(void);
+typedef void (*_fnptr_t)(void);
 typedef void* _pointer;
-typedef void** arguments;
-
-static void **argsArrayNew(int nargs) {
-	void** ptr = (void **)(malloc(nargs * _ptrSize));
-	memset(ptr, 0, nargs * _ptrSize);
-	return ptr;
-}
-
-static void argsArraySet(void **args, int index, void *ptr) {
-	args[index] = ptr;
-}
-
-static void argsArrayFree(void **args) {
-	free(args);
-}
-
-static void _ffi_call(ffi_cif *cif, fnptr_t fn, void *rvalue, void **values) {
-	printf("test");
-	ffi_call(cif, fn, rvalue, values);
-}
-
-static void *makeInt(int val) {
-	void *ptr = (void *) malloc(sizeof(int));
-	*((int*) ptr) = val;
-	return ptr;
-}
 */
 import "C"
 
 import (
 	"errors"
-	"fmt"
 	"github.com/achille-roussel/go-dl"
 	"reflect"
 	"strings"
+	"sync"
 	"unsafe"
 )
+
+type functionPointer C._fnptr_t
 
 var (
 	errNoGoFuncDef       = errors.New("parameter is not a Go function definition")
 	errNoCFuncDef        = errors.New("parameter is not a C function definition")
 	errGoFuncMultiReturn = errors.New("multiple return values for Go impossible (except error as second return value)")
-)
-
-var (
-	ptrSize  = int(C._ptrSize)
-	boolSize = int(C._boolSize)
-	intSize  = int(C._intSize)
 )
 
 type status int
@@ -102,10 +55,11 @@ const (
 	BindGlobal = dl.Global
 )
 
-type FFICleaner func()
-
 type Library struct {
-	lib dl.Library
+	lib         dl.Library
+	m           sync.Mutex
+	cifCache    map[string]*C.ffi_cif
+	symbolCache map[string]uintptr
 }
 
 func NewLibrary(library string, mode Mode) (*Library, error) {
@@ -122,15 +76,78 @@ func NewLibrary(library string, mode Mode) (*Library, error) {
 		return nil, err
 	}
 
-	return &Library{lib: lib}, nil
+	return &Library{
+		lib:         lib,
+		cifCache:    make(map[string]*C.ffi_cif, 0),
+		symbolCache: make(map[string]uintptr, 0),
+	}, nil
 }
 
 func (l *Library) Close() error {
+	for _, cif := range l.cifCache {
+		if cif.arg_types != nil {
+			C.free(unsafe.Pointer(cif.arg_types))
+		}
+	}
 	return l.lib.Close()
 }
 
-func (l *Library) Function(symbol string, retType reflect.Type, returnsError bool,
-	argumentTypes ...reflect.Type) (interface{}, FFICleaner, error) {
+func (l *Library) Symbol(name string) (uintptr, error) {
+	l.m.Lock()
+	defer l.m.Unlock()
+	symbol := l.symbolCache[name]
+	if symbol != 0 {
+		return symbol, nil
+	}
+
+	s, err := l.lib.Symbol(name)
+	if err != nil {
+		return 0, err
+	}
+
+	l.symbolCache[name] = symbol
+	return s, nil
+}
+
+func (l *Library) Import(symbol string, target interface{}) error {
+	tpt := reflect.TypeOf(target)
+
+	if tpt.Kind() != reflect.Ptr || tpt.Elem().Kind() != reflect.Func {
+		return errors.New("target not a function type")
+	}
+	tv := reflect.ValueOf(target)
+	tv = reflect.Indirect(tv)
+	tt := tv.Type()
+
+	returnsError, err := precheckResultTypes(tt)
+	if err != nil {
+		return err
+	}
+
+	outType := wrapReturnType(tt)
+	inTypes, inTypesPtr, nargs, err := wrapArgumentTypes(tt)
+	if err != nil {
+		return err
+	}
+
+	cif, err := l.getOrCreateCif(symbol, outType, inTypesPtr, nargs)
+	if err != nil {
+		return err
+	}
+
+	funcPtr, err := l.makeFunctionPointer(symbol)
+	if err != nil {
+		return err
+	}
+
+	stub := makeStub(tt, cif, funcPtr, outType, inTypes, returnsError)
+	funcValue := reflect.MakeFunc(tt, stub)
+	tv.Set(funcValue)
+	return nil
+}
+
+func (l *Library) ImportCustom(symbol string, retType reflect.Type, returnsError bool,
+	argumentTypes ...reflect.Type) (interface{}, error) {
 
 	out := []reflect.Type{retType}
 	if returnsError {
@@ -138,144 +155,126 @@ func (l *Library) Function(symbol string, retType reflect.Type, returnsError boo
 	}
 
 	funcType := reflect.FuncOf(argumentTypes, out, false)
-	return l.GoFunction(symbol, funcType, funcType)
+	return l.ImportComplex(symbol, funcType, funcType)
 }
 
-func (l *Library) GoFunction(symbol string, goFnType reflect.Type, cFnType reflect.Type) (interface{}, FFICleaner, error) {
+func (l *Library) ImportComplex(symbol string, goFnType reflect.Type, cFnType reflect.Type) (interface{}, error) {
 	if goFnType.Kind() != reflect.Func {
-		return nil, nil, errNoGoFuncDef
+		return nil, errNoGoFuncDef
 	}
 	if cFnType.Kind() != reflect.Func {
-		return nil, nil, errNoCFuncDef
+		return nil, errNoCFuncDef
 	}
 
-	returnsError := false
-	if goFnType.NumOut() > 1 {
-		if goFnType.NumOut() > 2 {
-			return nil, nil, errGoFuncMultiReturn
-		}
-		if !goFnType.Out(1).Implements(TypeError) {
-			return nil, nil, errGoFuncMultiReturn
-		}
-		returnsError = true
-	}
-
-	in := make([]ffiType, 0)
-	for i := 0; i < cFnType.NumIn(); i++ {
-		ot := cFnType.In(i)
-		t := wrapType(ot)
-		switch ot {
-		case TypeVoid:
-			continue
-		}
-		in = append(in, t)
-	}
-
-	cif, err := newCif(cFnType)
+	returnsError, err := precheckResultTypes(goFnType)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	var cleaner FFICleaner = func() {
-		C.free(unsafe.Pointer(cif.arg_types))
-	}
-
-	sym, err := l.lib.Symbol(symbol)
+	outType := wrapReturnType(cFnType)
+	inTypes, inTypesPtr, nargs, err := wrapArgumentTypes(cFnType)
 	if err != nil {
-		cleaner()
-		return nil, nil, err
+		return nil, err
 	}
 
-	fnPtr := (C.fnptr_t)(unsafe.Pointer(sym))
-	retType := typeVoid
-	if cFnType.NumOut() > 0 {
-		retType = wrapType(cFnType.Out(0))
+	cif, err := l.getOrCreateCif(symbol, outType, inTypesPtr, nargs)
+	if err != nil {
+		return nil, err
 	}
 
-	stub := func(values []reflect.Value) []reflect.Value {
-		nargs := len(values)
-		if nargs != len(in) {
-			msg := fmt.Sprintf("illegal argument length, expected %d, got %d", len(in), nargs)
-			err := errors.New(msg)
-
-			if returnsError {
-				return []reflect.Value{valueNil, reflect.ValueOf(err)}
-			}
-			panic(err)
-		}
-
-		args := C.argsArrayNew(C.int(nargs))
-		finalizers := make([]finalizer, 0)
-		for i := 0; i < nargs; i++ {
-			arg, fin := wrapValue(values[i])
-
-			if fin != nil {
-				finalizers = append(finalizers, fin)
-			}
-			C.argsArraySet(args, C.int(i), arg)
-		}
-
-		var cargs C.arguments = nil
-		if nargs > 0 {
-			cargs = args
-		}
-
-		ot := unwrapType(retType)
-		out := reflect.New(ot)
-		_, err := C._ffi_call(&cif, fnPtr, unsafe.Pointer(out.Elem().UnsafeAddr()), cargs)
-		if err != nil {
-			panic(err)
-		}
-		C.argsArrayFree(args)
-
-		for i := 0; i < len(finalizers); i++ {
-			finalizers[i]()
-		}
-
-		retValues := make([]reflect.Value, 0)
-		if goFnType.NumOut() > 0 {
-			rt := goFnType.Out(0)
-			out = unwrapValue(out, rt)
-			retValues = append(retValues, out)
-		}
-
-		if returnsError {
-			retValues = append(retValues, valueNilError)
-		}
-
-		return retValues
+	funcPtr, err := l.makeFunctionPointer(symbol)
+	if err != nil {
+		return nil, err
 	}
-
-	return reflect.MakeFunc(goFnType, stub).Interface(), cleaner, nil
+	stub := makeStub(goFnType, cif, funcPtr, outType, inTypes, returnsError)
+	return reflect.MakeFunc(goFnType, stub).Interface(), nil
 }
 
-func newCif(fnType reflect.Type) (C.ffi_cif, error) {
-	var cif C.ffi_cif
+func (l *Library) getOrCreateCif(symbol string, retType ffiType, inTypesPtr *ffiType, nargs int) (*C.ffi_cif, error) {
+	l.m.Lock()
+	defer l.m.Unlock()
 
-	nargs := fnType.NumIn()
-	args := (*ffiType)(C.malloc(C.size_t(ptrSize * nargs)))
+	cif := l.cifCache[symbol]
+	if cif == nil {
+		c, err := newCif(retType, inTypesPtr, nargs)
+		if err != nil {
+			return nil, err
+		}
 
-	header := reflect.SliceHeader{Data: uintptr(unsafe.Pointer(args)), Len: nargs, Cap: nargs}
-	slice := *(*[]ffiType)(unsafe.Pointer(&header))
-
-	for i := 0; i < nargs; i++ {
-		slice[i] = wrapType(fnType.In(i))
-	}
-
-	ret := typeVoid
-	if fnType.NumOut() > 0 {
-		ret = wrapType(fnType.Out(0))
-	}
-
-	var argsPtr *ffiType = nil
-	if len(slice) > 0 {
-		argsPtr = args
-	}
-
-	retval := status(C.ffi_prep_cif(&cif, C.FFI_DEFAULT_ABI, C.uint(nargs), ret, argsPtr))
-	if retval != ffiOk {
-		return cif, retval
+		cif = c
+		l.cifCache[symbol] = c
 	}
 
 	return cif, nil
+}
+
+func (l *Library) makeFunctionPointer(name string) (functionPointer, error) {
+	symbol, err := l.Symbol(name)
+	if err != nil {
+		return nil, err
+	}
+	return (functionPointer)(unsafe.Pointer(symbol)), nil
+}
+
+func newCif(retType ffiType, inTypesPtr *ffiType, nargs int) (*C.ffi_cif, error) {
+	var cif C.ffi_cif
+
+	retval := status(C.ffi_prep_cif(&cif, C.FFI_DEFAULT_ABI, C.uint(nargs), retType, inTypesPtr))
+	if retval != ffiOk {
+		return nil, retval
+	}
+
+	return &cif, nil
+}
+
+func precheckResultTypes(fnType reflect.Type) (bool, error) {
+	returnsError := false
+	if fnType.NumOut() > 1 {
+		if fnType.NumOut() > 2 {
+			return false, errGoFuncMultiReturn
+		}
+		if !fnType.Out(1).Implements(TypeError) {
+			return false, errGoFuncMultiReturn
+		}
+		returnsError = true
+	}
+	return returnsError, nil
+}
+
+func wrapArgumentTypes(fnType reflect.Type) ([]ffiType, *ffiType, int, error) {
+	nargs := fnType.NumIn()
+
+	if nargs == 1 {
+		ot := fnType.In(0)
+		switch ot {
+		case TypeVoid:
+			// if only parameter is of type void, just ignore passing parameters at all
+			return nil, nil, 0, nil
+		}
+	}
+
+	arguments := (*ffiType)(C.malloc(C.size_t(ptrSize * nargs)))
+
+	header := reflect.SliceHeader{Data: uintptr(unsafe.Pointer(arguments)), Len: nargs, Cap: nargs}
+	in := *(*[]ffiType)(unsafe.Pointer(&header))
+
+	for i := 0; i < fnType.NumIn(); i++ {
+		ot := fnType.In(i)
+		t := wrapType(ot)
+		switch ot {
+		case TypeVoid:
+			C.free(unsafe.Pointer(arguments))
+			return nil, nil, 0, errors.New("void is not a legal parameter type")
+		}
+		in[i] = t
+	}
+	return in, arguments, nargs, nil
+}
+
+func wrapReturnType(fnType reflect.Type) ffiType {
+	retType := typeVoid
+	if fnType.NumOut() > 0 {
+		retType = wrapType(fnType.Out(0))
+	}
+	return retType
 }

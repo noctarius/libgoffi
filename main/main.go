@@ -7,6 +7,7 @@ import (
 
 type getpid = func() (int, error)
 type abs = func(int) (int, error)
+type FnSqrt = func(float64) float64
 
 func main() {
 	println("loading library...")
@@ -16,7 +17,7 @@ func main() {
 	}
 
 	println("searching getpid function...")
-	fn, _, err := lib.Function("getpid", goffi.TypeInt, true)
+	fn, err := lib.ImportCustom("getpid", goffi.TypeInt, true)
 	if err != nil {
 		panic(err)
 	}
@@ -30,7 +31,7 @@ func main() {
 	println(fmt.Sprintf("pid: %d", pid))
 
 	println("searching abs function...")
-	fn, cleaner, err := lib.Function("abs", goffi.TypeInt, true, goffi.TypeInt)
+	fn, err = lib.ImportCustom("abs", goffi.TypeInt, true, goffi.TypeInt)
 	if err != nil {
 		panic(err)
 	}
@@ -43,5 +44,12 @@ func main() {
 		panic(err)
 	}
 	println(fmt.Sprintf("abs: %d", a))
-	cleaner()
+
+	var sqrt FnSqrt
+	err = lib.Import("sqrt", &sqrt)
+	if err != nil {
+		panic(err)
+	}
+
+	println(fmt.Sprintf("sqrt: %f", sqrt(9.)))
 }
