@@ -40,8 +40,6 @@ func main() {
 		panic(err)
 	}
 
-	gp := (fn).(func() (int, error))
-
 	println("executing getpid...")
 	fnGetpid := fn.(getpid)
 	pid, err := fnGetpid()
@@ -85,5 +83,15 @@ func main() {
 		false,
 	)
 
-	fn, err := lib.NewImportComplex("sqrt", fnGo, fnC)
+	fn, err = lib.NewImportComplex("sqrt", fnGo, fnC)
+	if err != nil {
+		panic(err)
+	}
+
+	sqrt2, ok := fn.(func(int) int)
+	if !ok {
+		panic("could not map :(")
+	}
+
+	println(fmt.Sprintf("sqrt: %d", sqrt2(9)))
 }

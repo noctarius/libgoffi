@@ -262,7 +262,7 @@ func wrapValue(value reflect.Value) (unsafe.Pointer, finalizer) {
 	panic(errors.New(fmt.Sprintf("unhandled data type: %s", t.Kind().String())))
 }
 
-func unwrapValue(value reflect.Value, t reflect.Type) reflect.Value {
+func convertValue(value reflect.Value, t reflect.Type) reflect.Value {
 	vt := value.Type()
 	if vt.Kind() == reflect.Ptr {
 		ivt := reflect.Indirect(value)

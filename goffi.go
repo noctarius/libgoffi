@@ -157,7 +157,7 @@ func (l *Library) Import(symbol string, target interface{}) error {
 		return err
 	}
 
-	stub := makeStub(tt, cif, funcPtr, outType, inTypes, returnsError)
+	stub := makeStub(tt, tt, cif, funcPtr, outType, inTypes, returnsError)
 	funcValue := reflect.MakeFunc(tt, stub)
 	tv.Set(funcValue)
 	return nil
@@ -203,7 +203,7 @@ func (l *Library) NewImportComplex(symbol string, goFnType reflect.Type, cFnType
 	if err != nil {
 		return nil, err
 	}
-	stub := makeStub(goFnType, cif, funcPtr, outType, inTypes, returnsError)
+	stub := makeStub(goFnType, cFnType, cif, funcPtr, outType, inTypes, returnsError)
 	return reflect.MakeFunc(goFnType, stub).Interface(), nil
 }
 

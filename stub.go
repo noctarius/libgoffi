@@ -68,7 +68,7 @@ var (
 	intSize  = int(C._intSize)
 )
 
-func makeStub(fnType reflect.Type, cif *C.ffi_cif, funcPtr functionPointer, outType ffiType,
+func makeStub(inFnType, outFnType reflect.Type, cif *C.ffi_cif, funcPtr functionPointer, outType ffiType,
 	inTypes []ffiType, returnsError bool) func(values []reflect.Value) []reflect.Value {
 
 	return func(values []reflect.Value) []reflect.Value {
@@ -86,6 +86,7 @@ func makeStub(fnType reflect.Type, cif *C.ffi_cif, funcPtr functionPointer, outT
 		args := C.argsArrayNew(C.int(nargs))
 		finalizers := make([]finalizer, 0)
 		for i := 0; i < nargs; i++ {
+			values[i] = convertValue(values[i], outFnType.In(i))
 			arg, fin := wrapValue(values[i])
 
 			if fin != nil {
@@ -112,9 +113,9 @@ func makeStub(fnType reflect.Type, cif *C.ffi_cif, funcPtr functionPointer, outT
 		}
 
 		retValues := make([]reflect.Value, 0)
-		if fnType.NumOut() > 0 {
-			rt := fnType.Out(0)
-			out = unwrapValue(out, rt)
+		if inFnType.NumOut() > 0 {
+			rt := inFnType.Out(0)
+			out = convertValue(out, rt)
 			retValues = append(retValues, out)
 		}
 
