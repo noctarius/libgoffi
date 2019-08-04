@@ -204,7 +204,7 @@ For the next example we will not map out errors though (for the purpose of prese
 
 [source,go]
 ----
-fn, err := library.NewImport("sqrt", goffi.TypeFloat64, goffi.TypeFloat64, false)
+fn, err := library.NewImport("sqrt", goffi.TypeFloat64, false, goffi.TypeFloat64)
 if err != nil {
   // error handling
 }
