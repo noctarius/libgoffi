@@ -39,6 +39,7 @@ clean:
 	$(eval gominor="$(shell echo $(version) | sed -E 's/([0-9]*)\.([0-9]*)/\2/')")
 	$(eval gomajorreq="$(shell echo $(REQ_VERSION_GO) | sed -E 's/([0-9]*)\.([0-9]*)/\1/')")
 	$(eval gominorreq="$(shell echo $(REQ_VERSION_GO) | sed -E 's/([0-9]*)\.([0-9]*)/\2/')")
+	@echo "Go version '$(shell $(GO) version)' => $(version)"
 
 ifneq ($(version),devel)
 	@test $(gomajor) -ge $(gomajorreq) || \
@@ -47,8 +48,6 @@ ifneq ($(version),devel)
 	@test $(gominor) -ge $(gominorreq) || \
 		{ echo ""; echo >&2 "Go compiler >= $(REQ_VERSION_GO) needs to be available in the path for compilation, only $(version) found"; exit 1; }
 endif
-
-	@echo "Go version $(version)."
 
 test: .info
 	@mkdir -p target
