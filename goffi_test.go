@@ -21,7 +21,7 @@ import (
 	"testing"
 )
 
-const testLibrary = "target/libgoffitests"
+const testLibrary = "libgoffitests"
 
 func TestLoadLibraryFailed(t *testing.T) {
 	_, err := NewLibrary("123libc", BindNow)
@@ -63,7 +63,7 @@ func TestImportSymbolFailed(t *testing.T) {
 }
 
 func TestExecuteOneParamOneReturn(t *testing.T) {
-	l, err := NewLibrary("target/libgoffitests.so", BindLazy)
+	l, err := NewLibrary(testLibrary, BindLazy)
 	if err != nil {
 		t.Errorf("Library failed to be initialized: %v", err)
 	}
@@ -81,7 +81,7 @@ func TestExecuteOneParamOneReturn(t *testing.T) {
 }
 
 func TestExecuteNoParamOneReturn(t *testing.T) {
-	l, err := NewLibrary("target/libgoffitests.so", BindNow)
+	l, err := NewLibrary(testLibrary, BindNow)
 	if err != nil {
 		t.Errorf("Library failed to be initialized: %v", err)
 	}

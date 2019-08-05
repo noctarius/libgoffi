@@ -53,5 +53,6 @@ test: .info
 	@cd target
 	@cd target && $(CMAKE) ../tests
 	@cd target && $(MAKE)
-	@GOARCH=$(CROSS_ARCH) GOOS=$(CROSS_OS) GOARM=$(GOARM) $(GO) test -o target/tests -cover -coverprofile=target/c.out
+	@echo Compiling libgoffi tests
+	@LD_LIBRARY_PATH=./target:$$LD_LIBRARY_PATH GOARCH=$(CROSS_ARCH) GOOS=$(CROSS_OS) GOARM=$(GOARM) $(GO) test -o target/tests -cover -coverprofile=target/c.out
 	@GOARCH=$(CROSS_ARCH) GOOS=$(CROSS_OS) GOARM=$(GOARM) $(GO) tool cover -html=target/c.out -o target/coverage.html
