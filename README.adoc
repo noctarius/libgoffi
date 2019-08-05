@@ -11,6 +11,7 @@ clevabit GmbH <https://github.com/clevabit[@clevabit]>
 
 == Introduction to libgoffi
 
+image:https://ci.appveyor.com/api/projects/status/github/clevabit/libgoffi?branch=master&svg=true[link=https://ci.appveyor.com/project/clevabit/libgoffi, window="_blank"]
 image:https://godoc.org/github.com/clevabit/libgoffi?status.svg[link=https://godoc.org/github.com/clevabit/libgoffi, window="_blank"]
 
 link:http://sourceware.org/libffi/[libffi] is one of the most commonly used libraries
