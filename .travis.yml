@@ -1,0 +1,22 @@
+sudo: false
+language: c go
+
+install: make cmake autoconf automake libffi-dev
+compiler:
+  - gcc
+
+go:
+  - 1.12.7
+  - tip
+
+os:
+  - linux
+  - osx
+
+matrix:
+  allow_failures:
+    - go: tip
+  fast_finish: true
+
+script:
+  - make test
