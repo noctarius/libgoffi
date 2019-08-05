@@ -34,10 +34,18 @@ clean:
 	@command -v make > /dev/null 2>&1 || \
 		{ echo >&2 "MAKE needs to be available in the path for compilation"; exit 1; }
 
-	$(eval version="$(shell $(GO) version | awk '{print $$3}' | sed -E 's/go([0-9]*\.[0-9]*\.[0-9]*)/\1/')")
-	$(eval higest="$(shell echo $(REQ_VERSION_GO) $(version) | sed -E 's/ /\n/' | sort -V | head -n 1)")
-	@test "$(higest)" = "$(REQ_VERSION_GO)" || \
-		{ echo ""; echo >&2 "Go compiler >=1.12 needs to be available in the path for compilation, only $(higest) found"; exit 1; }
+	$(eval version="$(shell $(GO) version | awk '{print $$3}' | sed -E 's/go([0-9]*\.[0-9]*)\.[0-9]*/\1/')")
+
+	$(eval gomajor="$(shell echo $(version) | sed -E 's/([0-9]*)\.([0-9]*)/\1/')")
+	$(eval gominor="$(shell echo $(version) | sed -E 's/([0-9]*)\.([0-9]*)/\2/')")
+	$(eval gomajorreq="$(shell echo $(REQ_VERSION_GO) | sed -E 's/([0-9]*)\.([0-9]*)/\1/')")
+	$(eval gominorreq="$(shell echo $(REQ_VERSION_GO) | sed -E 's/([0-9]*)\.([0-9]*)/\2/')")
+
+	@test $(gomajor) -ge $(gomajorreq) || \
+		{ echo ""; echo >&2 "Go compiler >= $(REQ_VERSION_GO) needs to be available in the path for compilation, only $(version) found"; exit 1; }
+
+	@test $(gominor) -ge $(gominorreq) || \
+		{ echo ""; echo >&2 "Go compiler >= $(REQ_VERSION_GO) needs to be available in the path for compilation, only $(version) found"; exit 1; }
 
 	@echo "done."
 
