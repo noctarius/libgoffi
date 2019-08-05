@@ -70,7 +70,7 @@ all pointers that need to be passed to C code to allocate using _C.malloc(…)_ 
 prevent the Go runtime to catch the "_Go Pointer to Go Pointer_" exception.
 
 **Attention:** When passing a String to a function, remember, that it is mapped to
-a _char *_ data type. That means, it will have an added 0x00 (\0) byte at the end.
+a _char *_ data type. That means, it will have an added _0x00_ (_\0_) byte at the end.
 Therefore, if passing a length for a string, remember to add one byte (_len(msg)+1_).
 
 **Attention:** Returning a _char *_ from a function in C (which is uncommon) and
