@@ -11,7 +11,8 @@ clevabit GmbH <https://github.com/clevabit[@clevabit]>
 
 == Introduction to libgoffi
 
-image:https://ci.appveyor.com/api/projects/status/github/clevabit/libgoffi?branch=master&svg=true[link=https://ci.appveyor.com/project/clevabit/libgoffi, window="_blank"]
+image:https://ci.appveyor.com/api/projects/status/github/clevabit/libgoffi?branch=master&svg=true[link=https://ci.appveyor.com/project/noctarius/libgoffi, window="_blank"]
+image:https://api.codacy.com/project/badge/Grade/0b6a6380bfdf497eb91bd3ea17c8b6ad["Codacy code quality", link="https://www.codacy.com/app/noctarius/libgoffi?utm_source=github.com&utm_medium=referral&utm_content=clevabit/libgoffi&utm_campaign=Badge_Grade"]
 image:https://godoc.org/github.com/clevabit/libgoffi?status.svg[link=https://godoc.org/github.com/clevabit/libgoffi, window="_blank"]
 
 link:http://sourceware.org/libffi/[libffi] is one of the most commonly used libraries
