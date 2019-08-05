@@ -40,13 +40,15 @@ clean:
 	$(eval gomajorreq="$(shell echo $(REQ_VERSION_GO) | sed -E 's/([0-9]*)\.([0-9]*)/\1/')")
 	$(eval gominorreq="$(shell echo $(REQ_VERSION_GO) | sed -E 's/([0-9]*)\.([0-9]*)/\2/')")
 
+ifneq ($(version),devel)
 	@test $(gomajor) -ge $(gomajorreq) || \
 		{ echo ""; echo >&2 "Go compiler >= $(REQ_VERSION_GO) needs to be available in the path for compilation, only $(version) found"; exit 1; }
 
 	@test $(gominor) -ge $(gominorreq) || \
 		{ echo ""; echo >&2 "Go compiler >= $(REQ_VERSION_GO) needs to be available in the path for compilation, only $(version) found"; exit 1; }
+endif
 
-	@echo "done."
+	@echo "Go version $(version)."
 
 test: .info
 	@mkdir -p target
