@@ -284,13 +284,20 @@ func convertValue(value reflect.Value, t reflect.Type) reflect.Value {
 		vt = value.Type()
 	}
 
-	if t.Kind() == reflect.Ptr {
+	switch t.Kind() {
+	case reflect.Ptr:
 		it := t.Elem()
 		reflect.ValueOf(value.Convert(it).Interface())
 		pv := reflect.New(it)
 		pv.Elem().Set(value)
 		value = pv
-	} else {
+	case reflect.String:
+		if vt.Kind() == reflect.Uintptr {
+			ptr := value.Interface().(uintptr)
+			value = reflect.ValueOf(C.GoString((*C.char)(unsafe.Pointer(ptr))))
+			C.free(unsafe.Pointer(ptr))
+		}
+	default:
 		value = reflect.ValueOf(value.Convert(t).Interface())
 	}
 

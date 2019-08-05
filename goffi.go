@@ -74,6 +74,7 @@ const (
 
 type Library struct {
 	lib         dl.Library
+	name        string
 	m           sync.Mutex
 	cifCache    map[string]*C.ffi_cif
 	symbolCache map[string]uintptr
@@ -95,6 +96,7 @@ func NewLibrary(library string, mode Mode) (*Library, error) {
 
 	return &Library{
 		lib:         lib,
+		name:        library,
 		cifCache:    make(map[string]*C.ffi_cif, 0),
 		symbolCache: make(map[string]uintptr, 0),
 	}, nil
