@@ -1,9 +1,14 @@
 sudo: false
-language: c go
+language: generic
 
-install: make cmake autoconf automake libffi-dev
 compiler:
   - gcc
+
+before_install:
+  - sudo apt-get install -y libffi-dev
+addons:
+  apt:
+    update: true
 
 go:
   - 1.12.7
