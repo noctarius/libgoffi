@@ -82,6 +82,25 @@ welcome.
 It might possible to support the WinAPI functions to load .DLL files though. Again
 pull requests adding support for Windows are welcome.
 
+== Not Supported
+
+* lobgoffi does not support signature checking. When executing an imported function using
+a wrong function signature, your program might just return a wrong value. In the worst
+case, however, it may actually crash with a segmentation fault or another exception
+of any kind.
+
+* As mentioned above, Windows, at the moment, is also not supported, as are any other posix
+compliant operating systems other than Linux and OSX (Darwin). In theory any posix OS
+supported by both Go and libffi should be possible to support though.
+
+* Mapping of Go structs is not supported and not the subject of this library adapter. Pointers
+to Go memory are always complicated to handle, and error prone. More information on CGO
+interaction and Go pointers can be found in the
+link:https://golang.org/cmd/cgo/#hdr-Passing_pointers[official Go documentation].
+
+* Furthermore function pointers are not officially supported or tested, but may work when
+exported as C functions. This might be officially supported in the future though.
+
 == Loading a Library
 
 Thanks to the _go-dl_ library which is used to load the underlying dynamic library,
