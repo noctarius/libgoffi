@@ -30,7 +30,6 @@ import (
 	"errors"
 	"github.com/achille-roussel/go-dl"
 	"reflect"
-	"strings"
 	"sync"
 	"unsafe"
 )
@@ -81,13 +80,11 @@ type Library struct {
 }
 
 func NewLibrary(library string, mode Mode) (*Library, error) {
-	if !strings.Contains(library, "/") {
-		path, err := dl.Find(library)
-		if err != nil {
-			return nil, err
-		}
-		library = path
+	path, err := dl.Find(library)
+	if err != nil {
+		return nil, err
 	}
+	library = path
 
 	lib, err := dl.Open(library, mode)
 	if err != nil {

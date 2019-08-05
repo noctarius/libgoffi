@@ -5,7 +5,6 @@ REQ_VERSION_GO := "1.12"
 GO ?= $(shell echo `command -v go`)
 CMAKE ?= $(shell echo `command -v cmake`)
 MAKE ?= $(shell echo `command -v make`)
-FILE ?= $(shell echo `command -v file`)
 
 GOARM ?= 7
 
@@ -54,6 +53,5 @@ test: .info
 	@cd target
 	@cd target && $(CMAKE) ../tests
 	@cd target && $(MAKE)
-	@$(FILE) target/libgoffitests.so
 	@GOARCH=$(CROSS_ARCH) GOOS=$(CROSS_OS) GOARM=$(GOARM) $(GO) test -o target/tests -cover -coverprofile=target/c.out
 	@GOARCH=$(CROSS_ARCH) GOOS=$(CROSS_OS) GOARM=$(GOARM) $(GO) tool cover -html=target/c.out -o target/coverage.html

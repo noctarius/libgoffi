@@ -21,7 +21,7 @@ import (
 	"testing"
 )
 
-const testLibrary = "target/libgoffitests.so"
+const testLibrary = "target/libgoffitests"
 
 func TestLoadLibraryFailed(t *testing.T) {
 	_, err := NewLibrary("123libc", BindNow)
