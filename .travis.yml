@@ -1,8 +1,10 @@
 sudo: false
-language: generic go c
+language: go
 
 compiler:
   - gcc
+
+install: true
 
 before_install:
   - sudo apt-get install -y libffi-dev
@@ -13,6 +15,9 @@ addons:
 go:
   - 1.12.7
   - tip
+
+env:
+  - GO111MODULE=on
 
 os:
   - linux
