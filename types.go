@@ -136,9 +136,6 @@ func wrapType(t reflect.Type) ffiType {
 
 func unwrapType(t ffiType) reflect.Type {
 	switch t {
-	case typeVoid:
-		return TypeVoid
-
 	case typeUint8:
 		return TypeUint8
 	case typeUint16:
@@ -301,6 +298,13 @@ func convertValue(value reflect.Value, t reflect.Type) reflect.Value {
 			value = reflect.ValueOf(C.GoString((*C.char)(unsafe.Pointer(ptr))))
 			C.free(unsafe.Pointer(ptr))
 		}
+	case reflect.Bool:
+		v := value.Int()
+		b := false
+		if v != 0 {
+			b = true
+		}
+		value = reflect.ValueOf(b)
 	default:
 		value = reflect.ValueOf(value.Convert(t).Interface())
 	}

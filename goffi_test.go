@@ -18,10 +18,59 @@
 package libgoffi
 
 import (
+	"reflect"
+	"strings"
 	"testing"
 )
 
 const testLibrary = "libgoffitests"
+
+func TestSymbolCached(t *testing.T) {
+	l, err := NewLibrary("libc", BindNow)
+	if err != nil {
+		t.Errorf("Library failed to be initialized: %v", err)
+		return
+	}
+
+	s1, err := l.Symbol("getpid")
+	if err != nil {
+		t.Errorf("Symbol getpid not available: %v", err)
+		l.Close()
+		return
+	}
+
+	s2, err := l.Symbol("getpid")
+	if err != nil {
+		t.Errorf("Symbol getpid not available: %v", err)
+		l.Close()
+		return
+	}
+
+	if s1 != s2 {
+		t.Errorf("Symbols for getpid are not equal: %d != %d", s1, s2)
+	}
+
+	l.Close()
+}
+
+func TestPassingWrongTargetObject(t *testing.T) {
+	l, err := NewLibrary("libc", BindNow)
+	if err != nil {
+		t.Errorf("Library failed to be initialized: %v", err)
+		return
+	}
+
+	var foo string
+	if err := l.Import("getpid", &foo); err != nil {
+		if !strings.Contains(err.Error(), "target not a function type") {
+			t.Errorf("wrong error returned: %s", err)
+		}
+	} else {
+		t.Error("the import should fail due to wrong target object passed")
+	}
+
+	l.Close()
+}
 
 func TestLoadLibraryFailed(t *testing.T) {
 	_, err := NewLibrary("123libc", BindNow)
@@ -38,7 +87,7 @@ func TestLoadLibrary(t *testing.T) {
 	l.Close()
 }
 
-func TestImportSymbol(t *testing.T) {
+func TestSimplyImportSymbol(t *testing.T) {
 	l, err := NewLibrary("libc", BindNow)
 	if err != nil {
 		t.Errorf("Library failed to be initialized: %v", err)
@@ -47,6 +96,145 @@ func TestImportSymbol(t *testing.T) {
 	if err := l.Import("getpid", &getpid); err != nil {
 		t.Errorf("Symbol getpid failed to be imported: %v", err)
 	}
+	l.Close()
+}
+
+func TestNewImportWithoutError(t *testing.T) {
+	l, err := NewLibrary("libc", BindNow)
+	if err != nil {
+		t.Errorf("Library failed to be initialized: %v", err)
+	}
+
+	fn, err := l.NewImport("getpid", TypeInt, false)
+	if err != nil {
+		t.Errorf("Symbol getpid failed to be imported: %v", err)
+	} else {
+		if _, ok := fn.(func() int); !ok {
+			t.Errorf("imported function is of wrong type, expected: "+
+				"func() int, got: %s", reflect.TypeOf(fn).String())
+		}
+	}
+
+	l.Close()
+}
+
+func TestNewImportWithError(t *testing.T) {
+	l, err := NewLibrary("libc", BindNow)
+	if err != nil {
+		t.Errorf("Library failed to be initialized: %v", err)
+	}
+
+	fn, err := l.NewImport("getpid", TypeInt, true)
+	if err != nil {
+		t.Errorf("Symbol getpid failed to be imported: %v", err)
+	} else {
+		if _, ok := fn.(func() (int, error)); !ok {
+			t.Errorf("imported function is of wrong type, expected: "+
+				"func() (int, error), got: %s", reflect.TypeOf(fn).String())
+		}
+	}
+
+	l.Close()
+}
+
+func TestMultiReturnFailingWithoutError(t *testing.T) {
+	l, err := NewLibrary("libc", BindNow)
+	if err != nil {
+		t.Errorf("Library failed to be initialized: %v", err)
+	}
+
+	fnType := reflect.FuncOf([]reflect.Type{}, []reflect.Type{TypeInt, TypeInt}, false)
+	_, err = l.NewImportComplex("getpid", fnType, fnType)
+	if err != nil {
+		if !strings.Contains(err.Error(), "multiple return values for Go impossible") {
+			t.Errorf("wrong error message received: %v", err)
+		}
+	} else {
+		t.Error("error message expected")
+	}
+
+	l.Close()
+}
+
+func TestMultiReturnFailingMoreThan2RetVals(t *testing.T) {
+	l, err := NewLibrary("libc", BindNow)
+	if err != nil {
+		t.Errorf("Library failed to be initialized: %v", err)
+	}
+
+	fnType := reflect.FuncOf([]reflect.Type{}, []reflect.Type{TypeInt, TypeInt, TypeError}, false)
+	_, err = l.NewImportComplex("getpid", fnType, fnType)
+	if err != nil {
+		if !strings.Contains(err.Error(), "multiple return values for Go impossible") {
+			t.Errorf("wrong error message received: %v", err)
+		}
+	} else {
+		t.Error("error message expected")
+	}
+
+	l.Close()
+}
+
+func TestOnlyReturnVoid(t *testing.T) {
+	l, err := NewLibrary(testLibrary, BindNow)
+	if err != nil {
+		t.Errorf("Library failed to be initialized: %v", err)
+	}
+
+	fnType := reflect.FuncOf([]reflect.Type{}, []reflect.Type{TypeVoid}, false)
+	fn, err := l.NewImportComplex("empty", fnType, fnType)
+	if err != nil {
+		if !strings.Contains(err.Error(), "multiple return values for Go impossible") {
+			t.Errorf("wrong error message received: %v", err)
+		}
+	} else {
+		if _, ok := fn.(func()); !ok {
+			t.Errorf("imported function is of wrong type, expected: "+
+				"func() int, got: %s", reflect.TypeOf(fn).String())
+		}
+	}
+
+	l.Close()
+}
+
+func TestOnlyParameterVoid(t *testing.T) {
+	l, err := NewLibrary("libc", BindNow)
+	if err != nil {
+		t.Errorf("Library failed to be initialized: %v", err)
+	}
+
+	fnType := reflect.FuncOf([]reflect.Type{TypeVoid}, []reflect.Type{TypeInt}, false)
+	fn, err := l.NewImportComplex("getpid", fnType, fnType)
+	if err != nil {
+		if !strings.Contains(err.Error(), "multiple return values for Go impossible") {
+			t.Errorf("wrong error message received: %v", err)
+		}
+	} else {
+		if _, ok := fn.(func() int); !ok {
+			t.Errorf("imported function is of wrong type, expected: "+
+				"func() int, got: %s", reflect.TypeOf(fn).String())
+		}
+	}
+
+	l.Close()
+}
+
+func TestFailingVoidParameterNotAlone(t *testing.T) {
+	l, err := NewLibrary("libc", BindNow)
+	if err != nil {
+		t.Errorf("Library failed to be initialized: %v", err)
+	}
+
+	fnType := reflect.FuncOf([]reflect.Type{TypeInt, TypeVoid}, []reflect.Type{TypeInt}, false)
+	_, err = l.NewImportComplex("fn", fnType, fnType)
+	if err != nil {
+		if !strings.Contains(err.Error(), "void is not a legal parameter type") {
+			t.Errorf("wrong error message received: %v", err)
+		}
+	} else {
+		t.Error("error message expected")
+	}
+
 	l.Close()
 }
 
@@ -214,6 +402,16 @@ func TestExecuteFloat64(t *testing.T) {
 	})
 }
 
+func TestExecuteBool(t *testing.T) {
+	var fn func() bool
+	libraryTestHelper(t, "_bool", testLibrary, &fn, func() {
+		v := fn()
+		if v != true {
+			t.Fail()
+		}
+	})
+}
+
 func TestExecuteIntInIntOut(t *testing.T) {
 	var fn func(int) int
 	libraryTestHelper(t, "__sint", testLibrary, &fn, func() {
@@ -304,6 +502,26 @@ func TestExecuteUint32InUint32Out(t *testing.T) {
 	})
 }
 
+func TestExecuteFloat32InFloat32Out(t *testing.T) {
+	var fn func(float32) float32
+	libraryTestHelper(t, "__float", testLibrary, &fn, func() {
+		v := fn(63.)
+		if v != 31. {
+			t.Fail()
+		}
+	})
+}
+
+func TestExecuteFloat64InFloat64Out(t *testing.T) {
+	var fn func(float64) float64
+	libraryTestHelper(t, "__double", testLibrary, &fn, func() {
+		v := fn(127.)
+		if v != 63. {
+			t.Fail()
+		}
+	})
+}
+
 func TestExecuteUint64InUint64Out(t *testing.T) {
 	var fn func(uint64) uint64
 	libraryTestHelper(t, "__uint64", testLibrary, &fn, func() {
@@ -314,11 +532,44 @@ func TestExecuteUint64InUint64Out(t *testing.T) {
 	})
 }
 
+func TestExecuteBoolFalseInBoolTrueOut(t *testing.T) {
+	var fn func(bool) bool
+	libraryTestHelper(t, "__bool", testLibrary, &fn, func() {
+		v := fn(false)
+		if v != true {
+			t.Fail()
+		}
+	})
+}
+
+func TestExecuteBoolTrueInBoolFalseOut(t *testing.T) {
+	var fn func(bool) bool
+	libraryTestHelper(t, "__bool", testLibrary, &fn, func() {
+		v := fn(true)
+		if v != false {
+			t.Fail()
+		}
+	})
+}
+
+func TestExecuteWithErrorButNotFailing(t *testing.T) {
+	var fn func(bool) (bool, error)
+	libraryTestHelper(t, "__bool", testLibrary, &fn, func() {
+		v, err := fn(true)
+		if v != false {
+			t.Fail()
+		}
+		if err != nil {
+			t.Fail()
+		}
+	})
+}
+
 func TestExecuteCharPtrIntInCharPtrOut(t *testing.T) {
 	var fn func(string, int) string
 	libraryTestHelper(t, "_char", testLibrary, &fn, func() {
 		msg := "hello world"
-		v := fn(msg, len(msg) + 1)
+		v := fn(msg, len(msg)+1)
 		if v != "hello world" {
 			t.Errorf("expected '%s', got '%s'", msg, v)
 		}

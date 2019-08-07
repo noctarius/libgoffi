@@ -20,6 +20,11 @@
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
+#include <stdbool.h>
+
+extern void empty(void) {
+    // do nothing
+}
 
 extern int _sint() {
     return -1;
@@ -67,6 +72,10 @@ extern float _float() {
 
 extern double _double() {
     return -64.2;
+}
+
+extern bool _bool() {
+    return true;
 }
 
 extern double _sqrt(double v) {
@@ -119,6 +128,10 @@ extern float __float(float v) {
 
 extern double __double(double v) {
     return v - 64.;
+}
+
+extern bool __bool(bool v) {
+    return !v;
 }
 
 extern const char *_char(const char *v, int length) {

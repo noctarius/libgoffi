@@ -56,8 +56,6 @@ static void _ffi_call(ffi_cif *cif, void(*fn)(void), void *rvalue, void **values
 */
 import "C"
 import (
-	"errors"
-	"fmt"
 	"reflect"
 	"unsafe"
 )
@@ -73,15 +71,6 @@ func makeStub(inFnType, outFnType reflect.Type, cif *C.ffi_cif, funcPtr function
 
 	return func(values []reflect.Value) []reflect.Value {
 		nargs := len(values)
-		if nargs != len(inTypes) {
-			msg := fmt.Sprintf("illegal argument length, expected %d, got %d", len(inTypes), nargs)
-			err := errors.New(msg)
-
-			if returnsError {
-				return []reflect.Value{valueNil, reflect.ValueOf(err)}
-			}
-			panic(err)
-		}
 
 		args := C.argsArrayNew(C.int(nargs))
 		finalizers := make([]finalizer, 0)

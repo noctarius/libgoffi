@@ -37,9 +37,11 @@ import (
 type functionPointer C._fnptr_t
 
 var (
-	errNoGoFuncDef       = errors.New("parameter is not a Go function definition")
-	errNoCFuncDef        = errors.New("parameter is not a C function definition")
-	errGoFuncMultiReturn = errors.New("multiple return values for Go impossible (except error as second return value)")
+	errNoGoFuncDef              = errors.New("parameter is not a Go function definition")
+	errNoCFuncDef               = errors.New("parameter is not a C function definition")
+	errGoFuncMultiReturn        = errors.New("multiple return values for Go impossible (except error as second return value)")
+	errVariadicTypeNotSupported = errors.New("variadic parameters are not supported")
+	errIllegalVoidParameter     = errors.New("void is not a legal parameter type")
 )
 
 type status int
@@ -121,7 +123,7 @@ func (l *Library) Symbol(name string) (uintptr, error) {
 		return 0, err
 	}
 
-	l.symbolCache[name] = symbol
+	l.symbolCache[name] = s
 	return s, nil
 }
 
@@ -141,10 +143,14 @@ func (l *Library) Import(symbol string, target interface{}) error {
 	}
 
 	outType := wrapReturnType(tt)
-	inTypes, inTypesPtr, nargs, err := wrapArgumentTypes(tt)
+
+	// Meaningless since there is no Void in Go, still for documentation :)
+	tt, err = cleanArgumentTypes(tt)
 	if err != nil {
 		return err
 	}
+
+	inTypes, inTypesPtr, nargs := wrapArgumentTypes(tt)
 
 	cif, err := l.getOrCreateCif(symbol, outType, inTypesPtr, nargs)
 	if err != nil {
@@ -165,13 +171,15 @@ func (l *Library) Import(symbol string, target interface{}) error {
 func (l *Library) NewImport(symbol string, retType reflect.Type, returnsError bool,
 	argumentTypes ...reflect.Type) (interface{}, error) {
 
+	cFnType := reflect.FuncOf(argumentTypes, []reflect.Type{retType}, false)
+
 	out := []reflect.Type{retType}
 	if returnsError {
 		out = append(out, TypeError)
 	}
 
-	funcType := reflect.FuncOf(argumentTypes, out, false)
-	return l.NewImportComplex(symbol, funcType, funcType)
+	goFnType := reflect.FuncOf(argumentTypes, out, false)
+	return l.NewImportComplex(symbol, goFnType, cFnType)
 }
 
 func (l *Library) NewImportComplex(symbol string, goFnType reflect.Type, cFnType reflect.Type) (interface{}, error) {
@@ -188,10 +196,17 @@ func (l *Library) NewImportComplex(symbol string, goFnType reflect.Type, cFnType
 	}
 
 	outType := wrapReturnType(cFnType)
-	inTypes, inTypesPtr, nargs, err := wrapArgumentTypes(cFnType)
+	cFnType, err = cleanArgumentTypes(cFnType)
 	if err != nil {
 		return nil, err
 	}
+
+	goFnType, err = cleanArgumentTypes(goFnType)
+	if err != nil {
+		return nil, err
+	}
+
+	inTypes, inTypesPtr, nargs := wrapArgumentTypes(cFnType)
 
 	cif, err := l.getOrCreateCif(symbol, outType, inTypesPtr, nargs)
 	if err != nil {
@@ -244,6 +259,10 @@ func newCif(retType ffiType, inTypesPtr *ffiType, nargs int) (*C.ffi_cif, error)
 }
 
 func precheckResultTypes(fnType reflect.Type) (bool, error) {
+	if fnType.IsVariadic() {
+		return false, errVariadicTypeNotSupported
+	}
+
 	returnsError := false
 	if fnType.NumOut() > 1 {
 		if fnType.NumOut() > 2 {
@@ -257,17 +276,36 @@ func precheckResultTypes(fnType reflect.Type) (bool, error) {
 	return returnsError, nil
 }
 
-func wrapArgumentTypes(fnType reflect.Type) ([]ffiType, *ffiType, int, error) {
-	nargs := fnType.NumIn()
+func cleanArgumentTypes(fnType reflect.Type) (reflect.Type, error) {
+	in := make([]reflect.Type, 0)
+	out := make([]reflect.Type, 0)
 
-	if nargs == 1 {
-		ot := fnType.In(0)
-		switch ot {
+	for i := 0; i < fnType.NumIn(); i++ {
+		it := fnType.In(i)
+		switch it {
 		case TypeVoid:
-			// if only parameter is of type void, just ignore passing parameters at all
-			return nil, nil, 0, nil
+			if i > 0 {
+				return nil, errIllegalVoidParameter
+			}
+			continue
 		}
+		in = append(in, it)
 	}
+
+	for i := 0; i < fnType.NumOut(); i++ {
+		it := fnType.Out(i)
+		switch it {
+		case TypeVoid:
+			continue
+		}
+		out = append(out, it)
+	}
+
+	return reflect.FuncOf(in, out, fnType.IsVariadic()), nil
+}
+
+func wrapArgumentTypes(fnType reflect.Type) ([]ffiType, *ffiType, int) {
+	nargs := fnType.NumIn()
 
 	arguments := (*ffiType)(C.malloc(C.size_t(ptrSize * nargs)))
 
@@ -276,15 +314,9 @@ func wrapArgumentTypes(fnType reflect.Type) ([]ffiType, *ffiType, int, error) {
 
 	for i := 0; i < fnType.NumIn(); i++ {
 		ot := fnType.In(i)
-		t := wrapType(ot)
-		switch ot {
-		case TypeVoid:
-			C.free(unsafe.Pointer(arguments))
-			return nil, nil, 0, errors.New("void is not a legal parameter type")
-		}
-		in[i] = t
+		in[i] = wrapType(ot)
 	}
-	return in, arguments, nargs, nil
+	return in, arguments, nargs
 }
 
 func wrapReturnType(fnType reflect.Type) ffiType {
