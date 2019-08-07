@@ -285,6 +285,10 @@ func convertValue(value reflect.Value, t reflect.Type) reflect.Value {
 	}
 
 	switch t.Kind() {
+	case reflect.Uintptr:
+		fallthrough
+	case reflect.UnsafePointer:
+		fallthrough
 	case reflect.Ptr:
 		it := t.Elem()
 		reflect.ValueOf(value.Convert(it).Interface())
