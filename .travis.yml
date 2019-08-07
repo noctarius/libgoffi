@@ -4,7 +4,9 @@ language: go
 compiler:
   - gcc
 
-install: true
+install:
+  - go get golang.org/x/tools/cmd/cover
+  - go get github.com/mattn/goveralls
 
 before_install:
   - if [ "$TRAVIS_OS_NAME" = "linux" ]; then sudo apt-get install -y libffi-dev; fi
@@ -33,3 +35,4 @@ matrix:
 
 script:
   - make test
+  - $HOME/gopath/bin/goveralls -coverprofile=coverage.out -service=travis-ci -repotoken $COVERALLS_TOKEN
