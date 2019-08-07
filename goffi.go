@@ -152,6 +152,9 @@ func (l *Library) Symbol(name string) (uintptr, error) {
 	return s, nil
 }
 
+// Imports a symbol from the loaded library. The given target must be a
+// pointer to a function variable in Go. The function signature is used
+// to automatically map the Go type signature to the C function.
 func (l *Library) Import(symbol string, target interface{}) error {
 	tpt := reflect.TypeOf(target)
 
@@ -193,6 +196,13 @@ func (l *Library) Import(symbol string, target interface{}) error {
 	return nil
 }
 
+// Imports a symbol from the loaded library. The function type, which is generated, is
+// defined by the given set of parameters. The returned function adapter can also return
+// an error as the second return type.
+// The returned function needs to be casted to a function declaration using a type
+// assertion.
+// The Go and C side mapping of the functions is a direct translation of the given
+// parameters, except the error, which only exists on the Go side.
 func (l *Library) NewImport(symbol string, retType reflect.Type, returnsError bool,
 	argumentTypes ...reflect.Type) (interface{}, error) {
 
@@ -207,6 +217,11 @@ func (l *Library) NewImport(symbol string, retType reflect.Type, returnsError bo
 	return l.NewImportComplex(symbol, goFnType, cFnType)
 }
 
+// Imports a symbol from the loaded library. The function type, which is generated, is
+// defined by the goFnType reflective Type instance. Due to more complex type mappings
+// the cFnType reflective Type instance represents the parameter and return type definitions
+// of the C side. It can use CGO C type definitions, as well as Go types, which will
+// automatically translated to their respective C types.
 func (l *Library) NewImportComplex(symbol string, goFnType reflect.Type, cFnType reflect.Type) (interface{}, error) {
 	if goFnType.Kind() != reflect.Func {
 		return nil, errNoGoFuncDef
