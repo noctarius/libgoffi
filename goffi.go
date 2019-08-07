@@ -64,26 +64,30 @@ const (
 	ffiBadABI     status = C.FFI_BAD_ABI
 )
 
+// This type is used to define the LD binding behavior
 type Mode = dl.Mode
 
 const (
 	// Performs a lazy binding. Maps to RTLD_LAZY,
 	// http://man7.org/linux/man-pages/man3/dlopen.3.html
-	BindLazy = Mode(dl.Lazy)
+	BindLazy = dl.Lazy
 
 	// Performs a eager binding. Maps to RTLD_NOW,
 	// http://man7.org/linux/man-pages/man3/dlopen.3.html
-	BindNow = Mode(dl.Now)
+	BindNow = dl.Now
 
 	// Makes symbols available locally. Maps to RTLD_LOCAL,
 	// http://man7.org/linux/man-pages/man3/dlopen.3.html
-	BindLocal = Mode(dl.Local)
+	BindLocal = dl.Local
 
 	// Makes symbols available globally. Maps to RTLD_GLOBAL,
 	// http://man7.org/linux/man-pages/man3/dlopen.3.html
-	BindGlobal = Mode(dl.Global)
+	BindGlobal = dl.Global
 )
 
+// This type represents the a loaded library, bound to a specific
+// library file (.so or .dylib). All exported symbols of this
+// library can be imported and mapped to Go functions.
 type Library struct {
 	lib         dl.Library
 	name        string
@@ -92,6 +96,10 @@ type Library struct {
 	symbolCache map[string]uintptr
 }
 
+// Loads a library file and create a Library instance bound to it.
+// _library_ can be only the name, in which the library is searched
+// in the library path LD_LIBRARY_PATH and working directory, or
+// otherwise a relative or absolute path to the library file.
 func NewLibrary(library string, mode Mode) (*Library, error) {
 	path, err := dl.Find(library)
 	if err != nil {
@@ -112,6 +120,9 @@ func NewLibrary(library string, mode Mode) (*Library, error) {
 	}, nil
 }
 
+// Closes the loaded Library. This is necessary to be called
+// to clean internal state and the caches, which speeds up
+// multiple requests for the same symbols.
 func (l *Library) Close() error {
 	for _, cif := range l.cifCache {
 		if cif.arg_types != nil {
@@ -121,6 +132,9 @@ func (l *Library) Close() error {
 	return l.lib.Close()
 }
 
+// Retrieves the native function pointer to the requested
+// symbol, or an error if the symbol is not found or any
+// other problem occurred.
 func (l *Library) Symbol(name string) (uintptr, error) {
 	l.m.Lock()
 	defer l.m.Unlock()
