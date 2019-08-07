@@ -67,9 +67,20 @@ const (
 type Mode = dl.Mode
 
 const (
+	// Performs a lazy binding. Maps to RTLD_LAZY,
+	// http://man7.org/linux/man-pages/man3/dlopen.3.html
 	BindLazy   = dl.Lazy
+
+	// Performs a eager binding. Maps to RTLD_NOW,
+	// http://man7.org/linux/man-pages/man3/dlopen.3.html
 	BindNow    = dl.Now
+
+	// Makes symbols available locally. Maps to RTLD_LOCAL,
+	// http://man7.org/linux/man-pages/man3/dlopen.3.html
 	BindLocal  = dl.Local
+
+	// Makes symbols available globally. Maps to RTLD_GLOBAL,
+	// http://man7.org/linux/man-pages/man3/dlopen.3.html
 	BindGlobal = dl.Global
 )
 
