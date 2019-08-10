@@ -259,11 +259,10 @@ func TestExecuteOneParamOneReturn(t *testing.T) {
 	if err := l.Import("_sqrt", &sqrt); err != nil {
 		t.Errorf("Symbol sqrt failed to be imported: %v", err)
 		return
-	} else {
-		ret := sqrt(9.)
-		if ret != 3. {
-			t.Fail()
-		}
+	}
+	ret := sqrt(9.)
+	if ret != 3. {
+		t.Fail()
 	}
 	l.Close()
 }

@@ -86,7 +86,7 @@ func makeStub(inFnType, outFnType reflect.Type, cif *C.ffi_cif, funcPtr function
 			C.argsArraySet(args, C.int(i), arg)
 		}
 
-		var cargs C.argumentsPtr = nil
+		var cargs C.argumentsPtr
 		if nargs > 0 {
 			cargs = args
 		}

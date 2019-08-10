@@ -26,7 +26,6 @@ typedef void* _ptr;
 */
 import "C"
 import (
-	"errors"
 	"fmt"
 	"reflect"
 	"unsafe"
@@ -186,7 +185,7 @@ func wrapType(t reflect.Type) ffiType {
 		}
 		return typeInt16
 	}
-	panic(errors.New(fmt.Sprintf("unhandled data type: %s", t.Kind().String())))
+	panic(fmt.Errorf("unhandled data type: %s", t.Kind().String()))
 }
 
 func unwrapType(t ffiType) reflect.Type {
@@ -217,7 +216,7 @@ func unwrapType(t ffiType) reflect.Type {
 	case typePointer:
 		return TypeUintptr
 	}
-	panic(errors.New(fmt.Sprintf("unhandled data type: %d", t)))
+	panic(fmt.Errorf("unhandled data type: %d", t))
 }
 
 type finalizer = func()
@@ -313,12 +312,11 @@ func wrapValue(value reflect.Value) (unsafe.Pointer, finalizer) {
 		if boolSize == 1 {
 			val := C.int8_t(b)
 			return unsafe.Pointer(&val), nil
-		} else {
-			val := C.int16_t(b)
-			return unsafe.Pointer(&val), nil
 		}
+		val := C.int16_t(b)
+		return unsafe.Pointer(&val), nil
 	}
-	panic(errors.New(fmt.Sprintf("unhandled data type: %s", t.Kind().String())))
+	panic(fmt.Errorf("unhandled data type: %s", t.Kind().String()))
 }
 
 func convertValue(value reflect.Value, t reflect.Type) reflect.Value {

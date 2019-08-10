@@ -64,28 +64,28 @@ const (
 	ffiBadABI     status = C.FFI_BAD_ABI
 )
 
-// This type is used to define the LD binding behavior
+// Mode is used to define the LD binding behavior
 type Mode = dl.Mode
 
 const (
-	// Performs a lazy binding. Maps to RTLD_LAZY,
+	// BindLazy performs a lazy binding. Maps to RTLD_LAZY,
 	// http://man7.org/linux/man-pages/man3/dlopen.3.html
 	BindLazy = dl.Lazy
 
-	// Performs a eager binding. Maps to RTLD_NOW,
+	// BindNow performs a eager binding. Maps to RTLD_NOW,
 	// http://man7.org/linux/man-pages/man3/dlopen.3.html
 	BindNow = dl.Now
 
-	// Makes symbols available locally. Maps to RTLD_LOCAL,
+	// BindLocal makes symbols available locally. Maps to RTLD_LOCAL,
 	// http://man7.org/linux/man-pages/man3/dlopen.3.html
 	BindLocal = dl.Local
 
-	// Makes symbols available globally. Maps to RTLD_GLOBAL,
+	// BindGlobal makes symbols available globally. Maps to RTLD_GLOBAL,
 	// http://man7.org/linux/man-pages/man3/dlopen.3.html
 	BindGlobal = dl.Global
 )
 
-// This type represents the a loaded library, bound to a specific
+// Library represents the a loaded library, bound to a specific
 // library file (.so or .dylib). All exported symbols of this
 // library can be imported and mapped to Go functions.
 type Library struct {
@@ -96,7 +96,7 @@ type Library struct {
 	symbolCache map[string]uintptr
 }
 
-// Loads a library file and create a Library instance bound to it.
+// NewLibrary loads a library file and create a Library instance bound to it.
 // _library_ can be only the name, in which the library is searched
 // in the library path LD_LIBRARY_PATH and working directory, or
 // otherwise a relative or absolute path to the library file.
@@ -120,7 +120,7 @@ func NewLibrary(library string, mode Mode) (*Library, error) {
 	}, nil
 }
 
-// Closes the loaded Library. This is necessary to be called
+// Close closes the loaded Library. This is necessary to be called
 // to clean internal state and the caches, which speeds up
 // multiple requests for the same symbols.
 func (l *Library) Close() error {
@@ -132,7 +132,7 @@ func (l *Library) Close() error {
 	return l.lib.Close()
 }
 
-// Retrieves the native function pointer to the requested
+// Symbol retrieves the native function pointer to the requested
 // symbol, or an error if the symbol is not found or any
 // other problem occurred.
 func (l *Library) Symbol(name string) (uintptr, error) {
@@ -152,7 +152,7 @@ func (l *Library) Symbol(name string) (uintptr, error) {
 	return s, nil
 }
 
-// Imports a symbol from the loaded library. The given target must be a
+// Import imports a symbol from the loaded library. The given target must be a
 // pointer to a function variable in Go. The function signature is used
 // to automatically map the Go type signature to the C function.
 func (l *Library) Import(symbol string, target interface{}) error {
@@ -196,7 +196,7 @@ func (l *Library) Import(symbol string, target interface{}) error {
 	return nil
 }
 
-// Imports a symbol from the loaded library. The function type, which is generated, is
+// NewImport imports a symbol from the loaded library. The function type, which is generated, is
 // defined by the given set of parameters. The returned function adapter can also return
 // an error as the second return type.
 // The returned function needs to be casted to a function declaration using a type
@@ -217,11 +217,11 @@ func (l *Library) NewImport(symbol string, retType reflect.Type, returnsError bo
 	return l.NewImportComplex(symbol, goFnType, cFnType)
 }
 
-// Imports a symbol from the loaded library. The function type, which is generated, is
-// defined by the goFnType reflective Type instance. Due to more complex type mappings
-// the cFnType reflective Type instance represents the parameter and return type definitions
-// of the C side. It can use CGO C type definitions, as well as Go types, which will
-// automatically translated to their respective C types.
+// NewImportComplex imports a symbol from the loaded library. The function type, which is
+// generated, is defined by the goFnType reflective Type instance. Due to more complex type
+// mappings the cFnType reflective Type instance represents the parameter and return type
+// definitions of the C side. It can use CGO C type definitions, as well as Go types, which
+// will automatically translated to their respective C types.
 func (l *Library) NewImportComplex(symbol string, goFnType reflect.Type, cFnType reflect.Type) (interface{}, error) {
 	if goFnType.Kind() != reflect.Func {
 		return nil, errNoGoFuncDef

@@ -25,7 +25,7 @@ import (
 
 type getpid = func() (int, error)
 type abs = func(int) (int, error)
-type FnSqrt = func(float64) float64
+type fnSqrt = func(float64) float64
 
 func main() {
 	println("loading library...")
@@ -63,7 +63,7 @@ func main() {
 	}
 	println(fmt.Sprintf("abs: %d", a))
 
-	var sqrt FnSqrt
+	var sqrt fnSqrt
 	err = lib.Import("sqrt", &sqrt)
 	if err != nil {
 		panic(err)
