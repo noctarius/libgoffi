@@ -106,20 +106,20 @@ var (
 
 	// A type instance representing a Go bool. This type is
 	// translated into a _Bool / bool (or similar) type in C.
-	TypeBool    = reflect.TypeOf(true)
+	TypeBool = reflect.TypeOf(true)
 
 	// A type instance representing a Go uintptr. This type is
 	// translated into a intptr_t (or similar) type in C.
-	TypeUintptr       = reflect.TypeOf(uintptr(0))
+	TypeUintptr = reflect.TypeOf(uintptr(0))
 
-	// A type instance representing a Go unsafe.Pointer. This type is
+	// A type instance representing a Go unsafe.Pointer. This type is@
 	// translated into a void* type in C.
 	TypeUnsafePointer = reflect.TypeOf(unsafe.Pointer(uintptr(0)))
 
 	// A type instance representing a virtual Go void type, which means
 	// no type at all. This type is "translated" into a void
 	// type in C.
-	TypeVoid          = reflect.TypeOf(&struct{}{})
+	TypeVoid = reflect.TypeOf(&struct{}{})
 )
 
 var valueNil = reflect.ValueOf(nil)
