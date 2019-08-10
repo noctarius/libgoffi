@@ -50,73 +50,73 @@ var (
 )
 
 var (
-	// A type instance representing a Go error. This type is not
+	// TypeError represents a Go error. This type is not
 	// translated into a C type
 	TypeError = reflect.TypeOf((*error)(nil)).Elem()
 
-	// A type instance representing a Go uint. This type is
+	// TypeUint represents a Go uint. This type is
 	// translated into the basic unsigned int type in C, which
 	// can be 2 or 4 bytes.
 	TypeUint = reflect.TypeOf(uint(0))
 
-	// A type instance representing a Go uint8. This type is
+	// TypeUint8 represents a Go uint8. This type is
 	// translated into a uint8_t (or similar) type in C.
 	TypeUint8 = reflect.TypeOf(uint8(0))
 
-	// A type instance representing a Go uint16. This type is
+	// TypeUint16 represents a Go uint16. This type is
 	// translated into a uint16_t (or similar) type in C.
 	TypeUint16 = reflect.TypeOf(uint16(0))
 
-	// A type instance representing a Go uint32. This type is
+	// TypeUint32 represents a Go uint32. This type is
 	// translated into a uint32_t (or similar) type in C.
 	TypeUint32 = reflect.TypeOf(uint32(0))
 
-	// A type instance representing a Go uint64. This type is
+	// TypeUint64 represents a Go uint64. This type is
 	// translated into a uint64_t (or similar) type in C.
 	TypeUint64 = reflect.TypeOf(uint64(0))
 
-	// A type instance representing a Go int. This type is
+	// TypeInt represents a Go int. This type is
 	// translated into the basic signed int type in C, which
 	// can be 2 or 4 bytes.
 	TypeInt = reflect.TypeOf(int(0))
 
-	// A type instance representing a Go int8. This type is
+	// TypeInt8 represents a Go int8. This type is
 	// translated into a int8_t (or similar) type in C.
 	TypeInt8 = reflect.TypeOf(int8(0))
 
-	// A type instance representing a Go int16. This type is
+	// TypeInt16 represents a Go int16. This type is
 	// translated into a int16_t (or similar) type in C.
 	TypeInt16 = reflect.TypeOf(int16(0))
 
-	// A type instance representing a Go int32. This type is
+	// TypeInt32 represents a Go int32. This type is
 	// translated into a int32_t (or similar) type in C.
 	TypeInt32 = reflect.TypeOf(int32(0))
 
-	// A type instance representing a Go int64. This type is
+	// TypeInt64 represents a Go int64. This type is
 	// translated into a int64_t (or similar) type in C.
 	TypeInt64 = reflect.TypeOf(int64(0))
 
-	// A type instance representing a Go float32. This type is
+	// TypeFloat32 represents a Go float32. This type is
 	// translated into a float type in C.
 	TypeFloat32 = reflect.TypeOf(float32(0))
 
-	// A type instance representing a Go float64. This type is
+	// TypeFloat64 represents a Go float64. This type is
 	// translated into a double type in C.
 	TypeFloat64 = reflect.TypeOf(float64(0))
 
-	// A type instance representing a Go bool. This type is
+	// TypeBool represents a Go bool. This type is
 	// translated into a _Bool / bool (or similar) type in C.
 	TypeBool = reflect.TypeOf(true)
 
-	// A type instance representing a Go uintptr. This type is
+	// TypeUintptr represents a Go uintptr. This type is
 	// translated into a intptr_t (or similar) type in C.
 	TypeUintptr = reflect.TypeOf(uintptr(0))
 
-	// A type instance representing a Go unsafe.Pointer. This type is@
+	// TypeUnsafePointer represents a Go unsafe.Pointer. This type is
 	// translated into a void* type in C.
 	TypeUnsafePointer = reflect.TypeOf(unsafe.Pointer(uintptr(0)))
 
-	// A type instance representing a virtual Go void type, which means
+	// TypeVoid represents a virtual Go void type, which means
 	// no type at all. This type is "translated" into a void
 	// type in C.
 	TypeVoid = reflect.TypeOf(&struct{}{})
