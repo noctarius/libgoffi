@@ -98,8 +98,8 @@ Go String (using _C.GoString(ptr)_) must be done manually, as freeing of the poi
 
 == Supported Operating Systems
 
-lobgoffi should support almost every posix compliant OS, there is, however, only
-code for Linux and OSX (Darwin) has been tested.
+lobgoffi should support almost every posix compliant OS, however, only code for Linux and
+OSX (Darwin) has been tested.
 
 A few lines of code should make it possible to support operating systems like
 FreeBSD or similar. Pull requests to add support for other operating systems are
