@@ -9,6 +9,32 @@ clevabit GmbH <https://github.com/clevabit[@clevabit]>
 :project-handle: libgoffi
 :toc:
 
+== TLDR;
+
+[source,go]
+----
+import (
+  goffi "github.com/clevabit/libgoffi"
+)
+
+// Import libc library
+library := goffi.NewLibrary("libc", goffi.BindNow|goffi.BindGlobal)
+
+// Make a function definition matching the native function's signature
+type getpid = func() int
+
+// Create a Go variable of the function type
+var fn getpid
+
+// Import the getpid function and map it to the target variable
+if err := library.Import("getpid", &fn); err != nil {
+  // error handling
+}
+
+// Execute the function like it was a standard Go function
+println(fmt.sprintf("pid: %d", fn()))
+----
+
 == Introduction to libgoffi
 
 image:https://travis-ci.org/clevabit/libgoffi.svg?branch=master[link=https://travis-ci.org/clevabit/libgoffi, window="_blank"]
