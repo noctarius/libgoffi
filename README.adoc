@@ -24,24 +24,32 @@ to implement foreign function interfaces in programming languages or frameworks.
 While Go has an amazing built-in functionality to interoperate with C functions, the
 usage of the CGO pseudo interfaces is not very intuitive. Especially in combination
 with dynamic libraries (_dlopen_, _dlsym_, _dlclose_) the complexity increases
-exponentially.
+exponentially, due to the  of loading and unloading the library and manually determining
+the symbol address.
 
-libgoffi implements a wrapper library to not only load dynamic libraries into the
-applications memory space (using link:https://github.com/achille-roussel/go-dl[go-dl]
-by link:https://github.com/achille-roussel[Achille Roussel]), but also map imported
-functions onto Go function types, using libffi's common foreign function interface.
+libgoffi implements a wrapper library to automatically load dynamic libraries into the
+applicationÄs memory space (using link:https://github.com/achille-roussel/go-dl[go-dl]
+by link:https://github.com/achille-roussel[Achille Roussel]), and map imported functions
+onto their Go function type counterparts, using libffi's common foreign function interface.
 
-In addition libgoffi can map the most commonly used data types between Go and C
+The necessary functions are generated at runtime by utilizing Go's reflection library
+and setting up the types and stub according to the given function signatures.
+
+**Attention:** Generating the code statically may be possible, but is not implemented at
+time of writing.
+
+libgoffi automatically maps the most commonly used data types between Go and C
 bi-directionally.
 
-**Attention:** libgoffi might run on Go compiler versions lower than 1.12, this is
-not tested though. Pull requests to support older and newer versions are welcome
-though.
+**Attention:** libgoffi may run with Go compiler versions lower than 1.12, but this is
+not tested. Pull requests to support older and newer versions are welcome though.
 
 == Supported Data Types
 
-libgoffi currently supports the most common Go data types. Automatic data type
-mapping may also be applied.
+libgoffi currently supports mapping of the most commonly used Go data types. Mapping can
+be applied manually, by specifying both parameter signatures, or automaticly by providing
+the Go function signature when importing the function, and have libgoffi figure out the
+according C function signature based on the table below.
 
 Mapping for the following data types is implemented:
 
@@ -66,46 +74,50 @@ Mapping for the following data types is implemented:
 | - | void | ffi_type_void
 |===
 
-**Attention:** The Go types _uint_ and _int_ mapping is platform specific and is
+**Attention:** The Go types _uint_ and _int_ mapping is platform specific and
 determined by looking at the maximum value of a signed int in C. Please be aware
-when automatically mapping those data types.
+when automatically mapping those data types. It is advised to use more specific
+data types, such as int32 or uint32 to be platform independent.
 
-**Attention:** Mapping of structs is not supported. It is also recommended to create
-all pointers that need to be passed to C code to allocate using _C.malloc(…)_ to
-prevent the Go runtime to catch the "_Go Pointer to Go Pointer_" exception.
+**Attention:** Mapping of structs is not supported. It is recommended to create
+all pointers to structs, that need to be passed to C code, by allocating them
+using _C.malloc(…)_. This prevents the Go runtime to throw the
+"_Go Pointer to Go Pointer_" exception.
 
-**Attention:** When passing a String to a function, remember, that it is mapped to
-a _char *_ data type. That means, it will have an added _0x00_ (_\0_) byte at the end.
-Therefore, if passing a length for a string, remember to add one byte (_len(msg)+1_).
+**Attention:** When passing a Go String to a function, remember, that it is mapped to
+a _char *_ data type in C. That means, the string will be extended by adding _0x00_
+byte (a zero byte, _\0_) at the end. Therefore, if the function in questions requires
+passing the length of the string, the actual string passed is one byte longer than the
+string in Go (_len(msg)+1_).
 
-**Attention:** Returning a _char *_ from a function in C (which is uncommon) and
-mapping it into a String in Go, the actual returned C pointer will be immediately
-freed after mapping. If this is not requested, the mapping should return the _char *_
-itself and transformation into a Go String (using _C.GoString(ptr)_) should be done
-manually.
+**Attention:** Returning a _char *_ from a function in C (which is uncommon), libgoffi
+will normally map it to a string in Go. Furthermore, libgoffi will immediately free the
+actual C pointer returned from the function. If this behavior is unintentional, the
+mapping must specifically ask to return the _char *_ itself. The transformation into a
+Go String (using _C.GoString(ptr)_) must be done manually, as freeing of the pointer.
 
 == Supported Operating Systems
 
 lobgoffi should support almost every posix compliant OS, there is, however, only
-code for Linux and OSX (Darwin).
+code for Linux and OSX (Darwin) has been tested.
 
 A few lines of code should make it possible to support operating systems like
 FreeBSD or similar. Pull requests to add support for other operating systems are
 welcome.
 
 **Windows** is not supported, since Windows does not support dlopen, dlsym and dlclose.
-It might possible to support the WinAPI functions to load .DLL files though. Again
-pull requests adding support for Windows are welcome.
+It should be totally possible to support the WinAPI functions to load .DLL files though.
+Again pull requests adding support for Windows are welcome.
 
 == Not Supported
 
 * lobgoffi does not support signature checking. When executing an imported function using
-a wrong function signature, your program might just return a wrong value. In the worst
+a wrong function signature, your program may just return a wrong value. In the worst
 case, however, it may actually crash with a segmentation fault or another exception
-of any kind.
+of any kind. In any case, it will not behave as expected (or does it? :-)).
 
-* As mentioned above, Windows, at the moment, is also not supported, as are any other posix
-compliant operating systems other than Linux and OSX (Darwin). In theory any posix OS
+* As mentioned above, Windows is also not supported, as are any other posix compliant
+operating systems other than Linux and OSX (Darwin). In theory any posix OS
 supported by both Go and libffi should be possible to support though.
 
 * Mapping of Go structs is not supported and not the subject of this library adapter. Pointers
@@ -113,8 +125,8 @@ to Go memory are always complicated to handle, and error prone. More information
 interaction and Go pointers can be found in the
 link:https://golang.org/cmd/cgo/#hdr-Passing_pointers[official Go documentation].
 
-* Furthermore function pointers are not officially supported or tested, but may work when
-exported as C functions. This might be officially supported in the future though.
+* Last but not least, function pointers are not officially supported or tested, but may
+work when exported as C functions. This might be officially supported in the future though.
 
 == Loading a Library
 
@@ -146,7 +158,7 @@ link:https://linux.die.net/man/3/dlopen[Linux manpages].
 
 == Import Functions
 
-Importing functions from the loaded library is provided using 3 different ways
+Importing functions from the loaded library is provided using 3 different styles,
 depending on how much type mapping is necessary and how complex function types
 are designed.
 
@@ -179,7 +191,7 @@ In this example we imported the _getpid_ function from libc, which in itself ret
 the pid (process identifier) of the currently running application, that said, our
 demo application.
 
-This mapping type also works for functions that expect a set of parameters.
+This mapping type also works for functions that expect one or more parameters.
 
 [source,go]
 ----
@@ -193,7 +205,7 @@ println(fmt.sprintf("sqrt of 9.0: %f", fn(9.)))
 ----
 
 It is also always possible to map out error return types as the last parameter of the
-function definition. Those will not be mapped out to the C function signature, but used
+function definition. The error will not be mapped out to the C function signature, but used
 by the library to report errors during execution of the function, like illegal parameter
 values.
 
@@ -214,27 +226,28 @@ if err != nil {
 println(fmt.sprintf("sqrt of 9.0: %f", sq))
 ----
 
-If errors are not reported back as part of the function signature, libgoffi will resort
-to panics to report the malfunctioning behavior.
+If no explicit error handling is requested as part of the function's signature, libgoffi
+will use panics to report the malfunctioning behavior. It is advised to explicitly map
+errors are return parameters to prevent unexpected panics.
 
 === New Function Import
 
-In addition to map a C function to an existing variable of a specific Go function
-type, libgoffi can also create function mappers for freely defined reflective
+In addition to mapping a C function to an existing variable of a specific Go function
+type, libgoffi can also create function mappers for freely defined (reflective)
 function definitions.
 
-For example we go and import both of the above functions again, but this time using
-the constructor function.
+For example we can import both of the above functions again, but this time using
+the explicit factory function.
 
 [source,go]
 ----
-// Create a new function which returns an int and an error (the true)
+// Create a new function which returns an int and an error (the third parameter)
 fn, err := library.NewImport("getpid", goffi.TypeInt, true)
 if err != nil {
   // error handling
 }
 
-// Type assertion to the specific function type
+// Type assertion to the specific Go function type
 getpid, ok := fn.(func()(int, error))
 if !ok {
   // error handling
@@ -245,13 +258,16 @@ println(fmt.sprintf("pid: %d", getpid()))
 ----
 
 In this example we mapped the _getpid_ function again and told the mapper we also want
-to report errors back. Remember, not reporting errors might result in a runtime panic
-in case of problems.
+to report errors back. Remember, not reporting errors may result in a runtime panic
+in case of any issues with the mapping.
 
-To map the returned function to a callable variable, type assertions are used which also
-provide automatic type checking.
+To map the returned function to a callable variable, a type assertions is required.
+Type assertions provide the benefit of automatic runtime type checking.
 
-For the next example we will not map out errors though (for the purpose of presentation).
+For the next example we import the _sqrt_ function again, but this time we will not map
+out errors though (third parameter is false). However, we also provide the parameter
+signature (a single float64 parameter). The parameter signature is a variadic argument
+and can take an arbitrary number of type arguments.
 
 [source,go]
 ----
@@ -270,35 +286,45 @@ println(fmt.sprintf("sqrt of 9.0: %f", sqrt(9.)))
 
 === Complex Data Type Mapping
 
-Sometimes, however, a more complex type mapping is necessary. This is especially the
+Sometimes, a more complex type mapping is necessary. This is especially the
 case, when the there is no automatic mapping for a library specific C data type.
 
-libgoffi provides a specific mapper function for this use case, which is able to
-be provided with a Go and C side function type definition.
+libgoffi provides a specific import function for complex use cases. It is able to
+be provided with a specific set of Go and C side function type definitions.
 
-libgoffi will make most out of these two function signatures and tries hard to map
-the given C type to the Go type, and vise versa.
+libgoffi will try its best to map the given C type to the Go type, and vise versa.
+It can, for example, be used to map number types in C or Go to another data type in
+the other language. Complex mapping of numbers can be dangerous though and types may
+be incorrectly be narrowed or widened if erroneously specificied. Also be aware of
+potential overflow handling when mapping between unsigned and signed data types.
 
-Another use case, is to map number types in C or Go to another data type in the
-other respective language.
+To show a more complex example, we will be passing an int to the _sqrt_ function, even
+though the C function clearly expects a float parameter. We also ask to return an int.
+The return value translation is possible but will truncate the data to an integer
+representation.
 
-This is what we will do in this example when passing an int to the _sqrt_ function.
-A bad example, I know, but it makes usage clear ;-)
+The type translation is automatically handled by libgoffi before passing the value
+onwards to the imported function.
+
+It is possible to just translate the parameter or return type, too.
 
 [source, go]
 ----
+// Define the Go function signature
 fnGo := reflect.FuncOf(
   []reflect.Type{goffi.TypeInt},     // input types
   []reflect.Type{goffi.TypeInt},     // output types
   false,                             // non-variadic
 )
 
+// Define the C function signature
 fnC := reflect.FuncOf(
   []reflect.Type{goffi.TypeFloat64}, // input types
   []reflect.Type{goffi.TypeFloat64}, // output types
   false,                             // non-variadic
 )
 
+// Import the function
 fn, err := library.NewImportComplex("sqrt", fnGo, fnC)
 if err != nil {
   // error handling
@@ -309,14 +335,14 @@ if !ok {
   // error handling
 }
 
-println(fmt.sprintf("sqrt of 9: %f", sqrt(9)))
+println(fmt.sprintf("sqrt of 9: %d", sqrt(9)))
 ----
 
 == Closing a Loaded Library
 
-libgoffi uses internal caches to store state and loaded symbols. Furthermore it also
-allocates memory outside of the Go heap. That said, a loaded library needs to be
-closed explicitly to free allocated resources.
+libgoffi uses internal caches to store state and loaded symbols. Furthermore, it also
+allocates memory outside of the Go heap. That said, a loaded library should be closed
+explicitly to free allocated resources.
 
 A simple call to the _Close()_ function is enough.
 
@@ -326,6 +352,21 @@ if err := library.Close(); err != nil {
   // error handling
 }
 ----
+
+== Why libgoffi?
+
+libgoffi provides Go idiomatic loading, importing and mapping of C functions, without
+the complexity of manual handling the CGO, when dealing with dynamic libraries.
+
+While Go and CGO provide a good solution to support statically linked libraries, depending
+on the use case, linking all libraries statically may not be the preferred solution.
+
+Especially in embedded environments space is limitted and a library already on disk (and
+used by other tools) doesn't need to be duplicated with static linking.
+
+Loading a dynamic library, importing symbols and mapping calls, however, can be a tedious
+job. That's why lobgoffi hides the complexity, and provides a clean and idiomatic Go
+interface.
 
 == License
 
