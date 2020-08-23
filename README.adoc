@@ -1,4 +1,4 @@
-= libgoffi - libffi adapter library for Go
+= libgoffi - idiomatic libffi library and arbitrary function adapter for Go
 Christoph Engelbert <https://github.com/noctarius[@noctarius2k]>
 clevabit GmbH <https://github.com/clevabit[@clevabit]>
 // Settings:
